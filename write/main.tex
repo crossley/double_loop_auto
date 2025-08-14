@@ -1,0 +1,235 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bm}
+\usepackage{mathtools}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[font=footnotesize]{caption}
+\usepackage{fontspec}
+\setmainfont{Arial}
+
+
+\begin{document}
+
+\title{Multiple stages of automaticity}
+\author{}
+% \date{\today}
+
+\maketitle
+
+\section*{Introduction}
+
+We built the model shown in Fig. \ref{fig_model} and
+simulated it in a minimal forced-choice category learning
+task with just two stimuli, one per category. After each
+response, the model received correct/incorrect feedback.
+Dopamine-dependent, three-factor synaptic plasticity was
+implemented at all cortical-subcortical synapses (VIS-DMS
+and PM-DLS). Two-factor Hebbian learning governed all
+cortical-cortical synapses (VIS-PM and PM-M1). Each
+simulation ran for 2000 trials, with different simulations
+exploring the effects of lesioning either the DMS or DLS at
+various learning stages. Lesions were simulated by setting
+the membrane potential of the affected neurons to zero. We
+also froze synaptic weight updates after the lesion.
+Preliminary results show:
+
+\begin{itemize}
+
+    \item Lesions early in learning -- from trial 100 -- to
+        both the DMS and DLS prevent learning (Fig.
+        \ref{fig_dms_100} and fig.  \ref{fig_dls_100}).
+
+    \item Lesions at intermediate stages of learning -- from
+        trial 500 -- to the DLS prevent learning (Fig.
+        \ref{fig_dls_500}), but lesions to the DMS do not
+        (Fig. \ref{fig_dms_500}).  This reflects transfer
+        from the first stage subcortical pathway to the
+        first stage cortical pathway.
+
+    \item Lesions at the latest stages of learning -- from
+        trial 1000 -- do not impair learning regardless of
+        whether the lesion is to the DMS (Fig.
+        \ref{fig_dms_1000}) or the DLS (Fig.
+        \ref{fig_dls_1000}).  This reflects transfer from
+        both subcortical pathways to both cortical pathways.
+
+\end{itemize}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.7\textwidth]{../figures/fig_model.png}
+    \caption{
+        The model architecture. The model consists of two
+        stages, each with a subcortical pathway (DMS and
+        DLS) and a cortical pathway (VIS-PM and PM-M1).
+        Dopamine-dependent, three-factor synaptic plasticity
+        is implemented at all cortical-subcortical synapses
+        (VIS-DMS and PM-DLS). Two-factor Hebbian learning
+        governs all cortical-cortical synapses (VIS-PM and
+        PM-M1).
+    }
+    \label{fig_model}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=1.0\textwidth]{../figures/model_spiking_lesion_trials_100-1999_cells_DMS.png}
+    \caption{
+        Lesions to the DMS at early stages of learning --
+        trial 100 onward -- prevent learning.
+        %
+        The first two columns show activity (i.e.,
+        neurotransmitter release) across every time step and
+        trial in every neuron.
+        %
+        The third column shows synaptic weights across
+        trials.
+        %
+        The fourth column shows a variety of information
+        pertaining the model's performance across trials.
+        The first row of this column shows predicted rewards
+        and RPE. The second row shows response accuracy (0
+        for incorrect and 1 for correct). The row column
+        shows response time.
+    }
+    \label{fig_dms_100}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=1.0\textwidth]{../figures/model_spiking_lesion_trials_100-1999_cells_DLS.png}
+    \caption{
+        Lesions to the DLS at early stages of learning --
+        trial 100 onward -- prevent learning.
+        %
+        The first two columns show activity (i.e.,
+        neurotransmitter release) across every time step and
+        trial in every neuron.
+        %
+        The third column shows synaptic weights across
+        trials.
+        %
+        The fourth column shows a variety of information
+        pertaining the model's performance across trials.
+        The first row of this column shows predicted rewards
+        and RPE. The second row shows response accuracy (0
+        for incorrect and 1 for correct). The row column
+        shows response time.
+    }
+    \label{fig_dls_100}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=1.0\textwidth]{../figures/model_spiking_lesion_trials_500-1999_cells_DMS.png}
+    \caption{
+        Lesions to the DMS at intermediate stages of
+        learning -- trial 500 onward -- do not impair
+        learning, reflecting transfer from the first stage
+        subcortical pathway to the first stage cortical
+        pathway.
+        %
+        The first two columns show activity (i.e.,
+        neurotransmitter release) across every time step and
+        trial in every neuron.
+        %
+        The third column shows synaptic weights across
+        trials.
+        %
+        The fourth column shows a variety of information
+        pertaining the model's performance across trials.
+        The first row of this column shows predicted rewards
+        and RPE. The second row shows response accuracy (0
+        for incorrect and 1 for correct). The row column
+        shows response time.
+    }
+    \label{fig_dms_500}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=1.0\textwidth]{../figures/model_spiking_lesion_trials_500-1999_cells_DLS.png}
+    \caption{
+        Lesions to the DLS at intermediate stages of
+        learning -- trial 500 onward -- continue to impair
+        learning, reflecting the lack of transfer from the
+        second stage subcortical pathway to the second stage
+        cortical pathway.  
+        %
+        The first two columns show activity (i.e.,
+        neurotransmitter release) across every time step and
+        trial in every neuron.
+        %
+        The third column shows synaptic weights across
+        trials.
+        %
+        The fourth column shows a variety of information
+        pertaining the model's performance across trials.
+        The first row of this column shows predicted rewards
+        and RPE. The second row shows response accuracy (0
+        for incorrect and 1 for correct). The row column
+        shows response time.
+    }
+    \label{fig_dls_500}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=1.0\textwidth]{../figures/model_spiking_lesion_trials_1000-1999_cells_DMS.png}
+    \caption{
+        Lesions to the DMS at the latest stages of learning
+        -- trial 1000 onward -- do not impair learning,
+        reflecting transfer from the first stage subcortical
+        pathway to the first stage cortical pathways. This
+        is just a contunation of the results in Fig.
+        \ref{fig_dms_500}.
+        %
+        The first two columns show activity (i.e.,
+        neurotransmitter release) across every time step and
+        trial in every neuron.
+        %
+        The third column shows synaptic weights across
+        trials.
+        %
+        The fourth column shows a variety of information
+        pertaining the model's performance across trials.
+        The first row of this column shows predicted rewards
+        and RPE. The second row shows response accuracy (0
+        for incorrect and 1 for correct). The row column
+        shows response time.
+}
+    \label{fig_dms_1000}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=1.0\textwidth]{../figures/model_spiking_lesion_trials_1000-1999_cells_DLS.png}
+    \caption{
+        Lesions to the DLS at the latest stages of learning
+        -- trial 1000 onward -- do not impair learning,
+        reflecting transfer from the second stage
+        subcortical pathway to the second stage cortical
+        pathways.
+        %
+        The first two columns show activity (i.e.,
+        neurotransmitter release) across every time step and
+        trial in every neuron.
+        %
+        The third column shows synaptic weights across
+        trials.
+        %
+        The fourth column shows a variety of information
+        pertaining the model's performance across trials.
+        The first row of this column shows predicted rewards
+        and RPE. The second row shows response accuracy (0
+        for incorrect and 1 for correct). The row column
+        shows response time.
+    }
+    \label{fig_dls_1000}
+\end{figure}
+
+\end{document}
+

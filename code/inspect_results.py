@@ -1,0 +1,11 @@
+# import model_single_loop
+# import model_single_loop_cat
+# import model_double_loop
+# import model_double_loop_cat
+import model_double_loop_cat_lesion as m1
+import model_double_loop_discrim_lesion as m2
+import model_double_loop_discrim_lesion_simple_vis as m3
+import model_double_loop_inst_2_resp_lesion as m4
+import model_double_loop_inst_2_resp_lesion_2 as m5
+import model_double_loop_inst_2_resp_lesion_3 as m6
+
