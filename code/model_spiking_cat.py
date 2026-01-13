@@ -24,19 +24,19 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
     beta_w_vis_dms = 5e-8
     gamma_w_vis_dms = 0.0
 
-    alpha_w_premotor_dls = 1e-8
-    beta_w_premotor_dls = 1e-8
+    alpha_w_premotor_dls = 1e-9
+    beta_w_premotor_dls = 1e-9
     gamma_w_premotor_dls = 0.0
 
-    alpha_w_vis_premotor = 1e-8
-    beta_w_vis_premotor = 1e-8
+    alpha_w_vis_premotor = 0
+    beta_w_vis_premotor = 0
 
-    alpha_w_premotor_motor = 3e-9
-    beta_w_premotor_motor = 3e-9
+    alpha_w_premotor_motor = 0
+    beta_w_premotor_motor = 0
 
     vis_dim = 100
-    vis_amp = 150
-    vis_sig = 15
+    vis_amp = 2
+    vis_sig = 10
     vis = np.zeros((vis_dim, vis_dim))
     w_vis_dms_A = np.zeros((vis_dim, vis_dim))
     w_vis_dms_B = np.zeros((vis_dim, vis_dim))
@@ -146,7 +146,7 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
 
         for trl in range(n_trials - 1):
 
-            print(f"Trial {trl + 1}/{n_trials}")
+            print(f"Trial {trl}/{n_trials}")
 
             # reset trial variables
             I_ext.fill(0)
@@ -167,19 +167,21 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
             xg, yg = np.meshgrid(np.arange(0, vis_dim, 1),
                                  np.arange(0, vis_dim, 1))
 
-            vis = np.exp(-(((xg - x)**2 + (yg - y)**2) / (2 * vis_sig**2)))
-
-            vis_act_A = np.dot(vis.flatten(), w_vis_dms_A.flatten())
-            vis_act_B = np.dot(vis.flatten(), w_vis_dms_B.flatten())
-
-            # TODO: Model might need more juice to learn. Consider turning off normalisation
-            # total = vis_act_A + vis_act_B
-            # vis_act_A /= total
-            # vis_act_B /= total
+            vis = vis_amp * np.exp(-(((xg - x)**2 + (yg - y)**2) / (2 * vis_sig**2)))
 
             # define external inputs (visual input to DMS layer)
-            I_ext[0, n_steps // 3:2 * n_steps // 3] = vis_act_A
-            I_ext[1, n_steps // 3:2 * n_steps // 3] = vis_act_B
+            vis_dms_act_A = np.dot(vis.flatten(), w_vis_dms_A.flatten())
+            vis_dms_act_B = np.dot(vis.flatten(), w_vis_dms_B.flatten())
+
+            I_ext[0, n_steps // 3:2 * n_steps // 3] = vis_dms_act_A
+            I_ext[1, n_steps // 3:2 * n_steps // 3] = vis_dms_act_B
+
+            # define external inputs (visual input to PM layer)
+            vis_pm_act_A = np.dot(vis.flatten(), w_vis_pm_A.flatten())
+            vis_pm_act_B = np.dot(vis.flatten(), w_vis_pm_B.flatten())
+
+            I_ext[2, n_steps // 3:2 * n_steps // 3] = vis_pm_act_A
+            I_ext[3, n_steps // 3:2 * n_steps // 3] = vis_pm_act_B
 
             for i in range(1, n_steps):
 
@@ -222,9 +224,9 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
             if rt[sim, trl] == 0:
                 rt[sim, trl] = i
                 if g[6, i] != g[7, i]:
-                    resp[sim, trl] = np.argmax(g[6:8, i])
+                    resp[sim, trl] = np.argmax(g[6:8, i]) + 1
                 else:
-                    resp[sim, trl] = np.random.choice([0, 1])
+                    resp[sim, trl] = np.random.choice([0, 1]) + 1
 
             # feedback
             if cat[sim, trl] == resp[sim, trl]:
@@ -239,8 +241,6 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
             # NOTE: 3-factor vis-dms
             dms_A = g[0, :].sum()
             dms_B = g[1, :].sum()
-
-            print(f"DMS A activity: {dms_A}, DMS B activity: {dms_B}")
 
             for ii in range(vis_dim):
                 for jj in range(vis_dim):
@@ -372,29 +372,77 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
             spike_rec[:, sim, trl, :] = spike
             w_rec[:, :, sim, trl] = w
 
-            if trl % 10 == 0 and trl > 0:
+            # if trl % 10 == 0 and trl > 0:
+            if True:
 
-                fig, ax = plt.subplots(1, 5, squeeze=False, figsize=(13, 8))
+                print(
+                    f"  Cat: {cat[sim, trl]}, Resp: {resp[sim, trl]}, Acc: {cat[sim, trl] == resp[sim, trl]}"
+                )
 
-                im0 = ax[0, 0].imshow(w_vis_dms_A, cmap="viridis")
-                ax[0, 0].set_title("w_vis_dms_A (current)")
-                plt.colorbar(im0, ax=ax[0, 0], fraction=0.046, pad=0.04)
+                fig = plt.figure(figsize=(15, 8))
+                gs = plt.GridSpec(8, 8)
+                ax = [
+                        [fig.add_subplot(gs[0:2, 0:2]), fig.add_subplot(gs[0:2, 2:4]),
+                         fig.add_subplot(gs[2:4, 0:2]), fig.add_subplot(gs[2:4, 2:4])],
+                        [fig.add_subplot(gs[0:2, 4:8]), fig.add_subplot(gs[2:4, 4:8])],
+                        [fig.add_subplot(gs[4, :4]), fig.add_subplot(gs[4, 4:])],
+                        [fig.add_subplot(gs[5, :4]), fig.add_subplot(gs[5, 4:])],
+                        [fig.add_subplot(gs[6, :4]), fig.add_subplot(gs[6, 4:])],
+                        [fig.add_subplot(gs[7, :4]), fig.add_subplot(gs[7, 4:])],
+                      ]
 
-                im1 = ax[0, 1].imshow(w_vis_dms_B, cmap="viridis")
-                ax[0, 1].set_title("w_vis_dms_B (current)")
-                plt.colorbar(im1, ax=ax[0, 1], fraction=0.046, pad=0.04)
+                axx = ax[0][0]
+                im0 = axx.imshow(w_vis_dms_A, cmap="viridis")
+                axx.set_title("w_vis_dms_A (current)")
+                plt.colorbar(im0, ax=axx, fraction=0.046, pad=0.04)
 
-                im2 = ax[0, 2].imshow(w_vis_pm_A, cmap="viridis")
-                ax[0, 2].set_title("w_vis_pm_A (current)")
-                plt.colorbar(im2, ax=ax[0, 2], fraction=0.046, pad=0.04)
+                axx = ax[0][1]
+                im1 = axx.imshow(w_vis_dms_B, cmap="viridis")
+                axx.set_title("w_vis_dms_B (current)")
+                plt.colorbar(im1, ax=axx, fraction=0.046, pad=0.04)
 
-                im3 = ax[0, 3].imshow(w_vis_pm_B, cmap="viridis")
-                ax[0, 3].set_title("w_vis_pm_B (current)")
-                plt.colorbar(im3, ax=ax[0, 3], fraction=0.046, pad=0.04)
+                axx = ax[0][2]
+                im2 = axx.imshow(w_vis_pm_A, cmap="viridis")
+                axx.set_title("w_vis_pm_A (current)")
+                plt.colorbar(im2, ax=axx, fraction=0.046, pad=0.04)
 
-                im4 = ax[0, 4].imshow(vis, cmap="viridis")
-                ax[0, 4].set_title("vis (current)")
-                plt.colorbar(im4, ax=ax[0, 4], fraction=0.046, pad=0.04)
+                axx = ax[0][3]
+                im3 = axx.imshow(w_vis_pm_B, cmap="viridis")
+                axx.set_title("w_vis_pm_B (current)")
+                plt.colorbar(im3, ax=axx, fraction=0.046, pad=0.04)
+
+                # plot premotor to dls weights
+                tt = np.arange(0, trl+2)
+                axx = ax[1][0]
+                axx.plot(tt, w_rec[2, 4, sim, :trl+2], label='(premotor A to DLS A)')
+                axx.plot(tt, w_rec[2, 5, sim, :trl+2], label='(premotor A to DLS B)')
+                axx.plot(tt, w_rec[3, 4, sim, :trl+2], label='(premotor B to DLS A)')
+                axx.plot(tt, w_rec[3, 5, sim, :trl+2], label='(premotor B to DLS B)')
+                axx.legend(loc='upper right')
+
+                # plot premotor to motor weights
+                axx = ax[1][1]
+                axx.plot(tt, w_rec[2, 6, sim, :trl+2], label='(premotor A to motor A)')
+                axx.plot(tt, w_rec[2, 7, sim, :trl+2], label='(premotor A to motor B)')
+                axx.plot(tt, w_rec[3, 6, sim, :trl+2], label='(premotor B to motor A)')
+                axx.plot(tt, w_rec[3, 7, sim, :trl+2], label='(premotor B to motor B)')
+                axx.legend(loc='upper right')
+
+                net_labs = ['DMS', 'Premotor', 'DLS', 'Motor']
+                for ii, jj in enumerate(range(0, n_cells, 2)):
+                    ax_v = ax[ii + 2][0]
+                    ax_g = ax_v.twinx()
+                    ax_v.plot(t, v[jj, :], color='C0', label=net_labs[ii] + ' A')
+                    ax_g.plot(t, g[jj, :], color='C1', label=net_labs[ii] + ' A')
+                    ax_v.legend(loc='upper right')
+                    ax_g.legend(loc='upper right')
+
+                    ax_v = ax[ii + 2][1]
+                    ax_g = ax_v.twinx()
+                    ax_v.plot(t, v[jj + 1, :], color='C0', label=net_labs[ii] + ' B')
+                    ax_g.plot(t, g[jj + 1, :], color='C1', label=net_labs[ii] + ' B')
+                    ax_v.legend(loc='upper right')
+                    ax_g.legend(loc='upper right')
 
                 fig.suptitle(f"Sim {sim} | Trial {trl}", fontsize=14)
                 plt.tight_layout()
