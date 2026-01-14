@@ -20,17 +20,21 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
 
     nmda_thresh = 0.0
 
-    alpha_w_vis_dms = 5e-8
-    beta_w_vis_dms = 5e-8
+    # stage 1 sub-cortical
+    alpha_w_vis_dms = 7.5e-8
+    beta_w_vis_dms = 7.5e-8
     gamma_w_vis_dms = 0.0
 
-    alpha_w_premotor_dls = 1e-9
-    beta_w_premotor_dls = 1e-9
+    # stage 2 sub-cortical
+    alpha_w_premotor_dls = 1e-13
+    beta_w_premotor_dls = 1e-14
     gamma_w_premotor_dls = 0.0
 
+    # stage 1 cortical
     alpha_w_vis_premotor = 0
     beta_w_vis_premotor = 0
 
+    # stage 2 cortical
     alpha_w_premotor_motor = 0
     beta_w_premotor_motor = 0
 
@@ -127,22 +131,24 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
         w[5, 7] = 0.04
 
         # vis->premotor: fully connected
-        w_vis_pm_A = np.random.uniform(0.001, 0.01, (vis_dim, vis_dim))
-        w_vis_pm_B = np.random.uniform(0.001, 0.01, (vis_dim, vis_dim))
+        w_vis_pm_A = np.random.uniform(0.001, 0.01, (vis_dim, vis_dim)) * 0
+        w_vis_pm_B = np.random.uniform(0.001, 0.01, (vis_dim, vis_dim)) * 0
 
         # premotor->motor: fully connected
-        w[2, 6] = np.random.uniform(0.001, 0.01)
-        w[2, 7] = np.random.uniform(0.001, 0.01)
-        w[3, 6] = np.random.uniform(0.001, 0.01)
-        w[3, 7] = np.random.uniform(0.001, 0.01)
+        w[2, 6] = np.random.uniform(0.001, 0.01) * 0
+        w[2, 7] = np.random.uniform(0.001, 0.01) * 0
+        w[3, 6] = np.random.uniform(0.001, 0.01) * 0
+        w[3, 7] = np.random.uniform(0.001, 0.01) * 0
 
         # lateral inhibition between DMS units
-        w[0, 1] = -0.2
-        w[1, 0] = -0.2
+        w[0, 1] = -0.0
+        w[1, 0] = -0.0
 
         # lateral inhibition between DLS units
-        w[4, 5] = -0.2
-        w[5, 4] = -0.2
+        w[4, 5] = -0.0
+        w[5, 4] = -0.0
+
+        # TODO: sort out lat inhib later... for now will implement at the weight update level
 
         for trl in range(n_trials - 1):
 
@@ -167,7 +173,8 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
             xg, yg = np.meshgrid(np.arange(0, vis_dim, 1),
                                  np.arange(0, vis_dim, 1))
 
-            vis = vis_amp * np.exp(-(((xg - x)**2 + (yg - y)**2) / (2 * vis_sig**2)))
+            vis = vis_amp * np.exp(-(((xg - x)**2 + (yg - y)**2) /
+                                     (2 * vis_sig**2)))
 
             # define external inputs (visual input to DMS layer)
             vis_dms_act_A = np.dot(vis.flatten(), w_vis_dms_A.flatten())
@@ -242,33 +249,29 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
             dms_A = g[0, :].sum()
             dms_B = g[1, :].sum()
 
+            # TODO: fiddly lat inhib implementation
+            if resp[sim, trl] == 1:
+                dms_B = 0
+            elif resp[sim, trl] == 2:
+                dms_A = 0
+
             for ii in range(vis_dim):
                 for jj in range(vis_dim):
 
                     pre_activity = vis[ii, jj]
 
                     post_activity = dms_A
-                    dw_1 = alpha_w_vis_dms * pre_activity * np.clip(
-                        post_activity - nmda_thresh, 0, None) * np.clip(
-                            rpe[sim, trl], 0, None) * (1 - w_vis_dms_A[ii, jj])
-                    dw_2 = beta_w_vis_dms * pre_activity * np.clip(
-                        post_activity - nmda_thresh, 0, None) * np.clip(
-                            rpe[sim, trl], None, 0) * w_vis_dms_A[ii, jj]
-                    dw_3 = -gamma_w_vis_dms * pre_activity * np.clip(
-                        nmda_thresh - post_activity, 0, None) * w_vis_dms_A[ii,
+                    dw_1 = alpha_w_vis_dms * pre_activity * np.clip( post_activity - nmda_thresh, 0, None) * np.clip( rpe[sim, trl], 0, None) * (1 - w_vis_dms_A[ii, jj])
+                    dw_2 = beta_w_vis_dms * pre_activity * np.clip( post_activity - nmda_thresh, 0, None) * np.clip( rpe[sim, trl], None, 0) * w_vis_dms_A[ii, jj]
+                    dw_3 = -gamma_w_vis_dms * pre_activity * np.clip( nmda_thresh - post_activity, 0, None) * w_vis_dms_A[ii,
                                                                             jj]
                     w_vis_dms_A[ii, jj] += dw_1 + dw_2 + dw_3
                     w_vis_dms_A[ii, jj] = np.clip(w_vis_dms_A[ii, jj], 0, 1)
 
                     post_activity = dms_B
-                    dw_1 = alpha_w_vis_dms * pre_activity * np.clip(
-                        post_activity - nmda_thresh, 0, None) * np.clip(
-                            rpe[sim, trl], 0, None) * (1 - w_vis_dms_B[ii, jj])
-                    dw_2 = beta_w_vis_dms * pre_activity * np.clip(
-                        post_activity - nmda_thresh, 0, None) * np.clip(
-                            rpe[sim, trl], None, 0) * w_vis_dms_B[ii, jj]
-                    dw_3 = -gamma_w_vis_dms * pre_activity * np.clip(
-                        nmda_thresh - post_activity, 0, None) * w_vis_dms_B[ii,
+                    dw_1 = alpha_w_vis_dms * pre_activity * np.clip( post_activity - nmda_thresh, 0, None) * np.clip( rpe[sim, trl], 0, None) * (1 - w_vis_dms_B[ii, jj])
+                    dw_2 = beta_w_vis_dms * pre_activity * np.clip( post_activity - nmda_thresh, 0, None) * np.clip( rpe[sim, trl], None, 0) * w_vis_dms_B[ii, jj]
+                    dw_3 = -gamma_w_vis_dms * pre_activity * np.clip( nmda_thresh - post_activity, 0, None) * w_vis_dms_B[ii,
                                                                             jj]
                     w_vis_dms_B[ii, jj] += dw_1 + dw_2 + dw_3
                     w_vis_dms_B[ii, jj] = np.clip(w_vis_dms_B[ii, jj], 0, 1)
@@ -278,7 +281,7 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
                 (2, 4),
                 (2, 5),
                 (3, 4),
-                (3, 5)  # premotor->dls
+                (3, 5)
             ])
 
             # Extract presynaptic and postsynaptic indices
@@ -288,6 +291,19 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
             # Compute presynaptic and postsynaptic activity sums
             pre_activity = g[pre_indices, :].sum(axis=1)
             post_activity = g[post_indices, :].sum(axis=1)
+
+            # TODO: fiddly lat inhib implementation
+            if resp[sim, trl] == 1:
+                post_activity[1] = 0
+                post_activity[3] = 0
+            elif resp[sim, trl] == 2:
+                post_activity[0] = 0
+                post_activity[2] = 0
+
+            # TODO: Even fiddlier.
+            if pre_activity[0] > pre_activity[2]:
+                pre_activity[2] = 0
+                pre_activity[3] = 0
 
             # Vectorized weight update components
             dw_1 = alpha_w_premotor_dls * pre_activity * np.clip(
@@ -382,65 +398,114 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
                 fig = plt.figure(figsize=(15, 8))
                 gs = plt.GridSpec(8, 8)
                 ax = [
-                        [fig.add_subplot(gs[0:2, 0:2]), fig.add_subplot(gs[0:2, 2:4]),
-                         fig.add_subplot(gs[2:4, 0:2]), fig.add_subplot(gs[2:4, 2:4])],
-                        [fig.add_subplot(gs[0:2, 4:8]), fig.add_subplot(gs[2:4, 4:8])],
-                        [fig.add_subplot(gs[4, :4]), fig.add_subplot(gs[4, 4:])],
-                        [fig.add_subplot(gs[5, :4]), fig.add_subplot(gs[5, 4:])],
-                        [fig.add_subplot(gs[6, :4]), fig.add_subplot(gs[6, 4:])],
-                        [fig.add_subplot(gs[7, :4]), fig.add_subplot(gs[7, 4:])],
-                      ]
+                    [
+                        fig.add_subplot(gs[0:2, 0:2]),
+                        fig.add_subplot(gs[0:2, 2:4]),
+                        fig.add_subplot(gs[2:4, 0:2]),
+                        fig.add_subplot(gs[2:4, 2:4])
+                    ],
+                    [
+                        fig.add_subplot(gs[0:2, 4:8]),
+                        fig.add_subplot(gs[2:4, 4:8])
+                    ],
+                    [fig.add_subplot(gs[4, :4]),
+                     fig.add_subplot(gs[4, 4:])],
+                    [fig.add_subplot(gs[5, :4]),
+                     fig.add_subplot(gs[5, 4:])],
+                    [fig.add_subplot(gs[6, :4]),
+                     fig.add_subplot(gs[6, 4:])],
+                    [fig.add_subplot(gs[7, :4]),
+                     fig.add_subplot(gs[7, 4:])],
+                ]
 
                 axx = ax[0][0]
-                im0 = axx.imshow(w_vis_dms_A, cmap="viridis")
+                im0 = axx.imshow(w_vis_dms_A, cmap="viridis", vmin=0, vmax=1)
                 axx.set_title("w_vis_dms_A (current)")
                 plt.colorbar(im0, ax=axx, fraction=0.046, pad=0.04)
 
                 axx = ax[0][1]
-                im1 = axx.imshow(w_vis_dms_B, cmap="viridis")
+                im1 = axx.imshow(w_vis_dms_B, cmap="viridis", vmin=0, vmax=1)
                 axx.set_title("w_vis_dms_B (current)")
                 plt.colorbar(im1, ax=axx, fraction=0.046, pad=0.04)
 
                 axx = ax[0][2]
-                im2 = axx.imshow(w_vis_pm_A, cmap="viridis")
+                im2 = axx.imshow(w_vis_pm_A, cmap="viridis", vmin=0, vmax=1)
                 axx.set_title("w_vis_pm_A (current)")
                 plt.colorbar(im2, ax=axx, fraction=0.046, pad=0.04)
 
                 axx = ax[0][3]
-                im3 = axx.imshow(w_vis_pm_B, cmap="viridis")
+                im3 = axx.imshow(w_vis_pm_B, cmap="viridis", vmin=0, vmax=1)
                 axx.set_title("w_vis_pm_B (current)")
                 plt.colorbar(im3, ax=axx, fraction=0.046, pad=0.04)
 
                 # plot premotor to dls weights
-                tt = np.arange(0, trl+2)
+                tt = np.arange(0, trl + 1)
                 axx = ax[1][0]
-                axx.plot(tt, w_rec[2, 4, sim, :trl+2], label='(premotor A to DLS A)')
-                axx.plot(tt, w_rec[2, 5, sim, :trl+2], label='(premotor A to DLS B)')
-                axx.plot(tt, w_rec[3, 4, sim, :trl+2], label='(premotor B to DLS A)')
-                axx.plot(tt, w_rec[3, 5, sim, :trl+2], label='(premotor B to DLS B)')
-                axx.legend(loc='upper right')
+                axx.scatter(tt,
+                            w_rec[2, 4, sim, :trl + 1],
+                            label='(PM A to DLS A)')
+                axx.scatter(tt,
+                            w_rec[2, 5, sim, :trl + 1],
+                            label='(PM A to DLS B)')
+                axx.scatter(tt,
+                            w_rec[3, 4, sim, :trl + 1],
+                            label='(PM B to DLS A)')
+                axx.scatter(tt,
+                            w_rec[3, 5, sim, :trl + 1],
+                            label='(PM B to DLS B)')
+                axx.plot(tt, w_rec[2, 4, sim, :trl + 1])
+                axx.plot(tt, w_rec[2, 5, sim, :trl + 1])
+                axx.plot(tt, w_rec[3, 4, sim, :trl + 1])
+                axx.plot(tt, w_rec[3, 5, sim, :trl + 1])
+                axx.set_ylim(-0.1, 1.4)
+                axx.legend(loc='upper right', ncol=4)
 
-                # plot premotor to motor weights
+                # scatter premotor to motor weights
                 axx = ax[1][1]
-                axx.plot(tt, w_rec[2, 6, sim, :trl+2], label='(premotor A to motor A)')
-                axx.plot(tt, w_rec[2, 7, sim, :trl+2], label='(premotor A to motor B)')
-                axx.plot(tt, w_rec[3, 6, sim, :trl+2], label='(premotor B to motor A)')
-                axx.plot(tt, w_rec[3, 7, sim, :trl+2], label='(premotor B to motor B)')
-                axx.legend(loc='upper right')
+                axx.scatter(tt,
+                            w_rec[2, 6, sim, :trl + 1],
+                            label='(PM A to M1 A)')
+                axx.scatter(tt,
+                            w_rec[2, 7, sim, :trl + 1],
+                            label='(PM A to M1 B)')
+                axx.scatter(tt,
+                            w_rec[3, 6, sim, :trl + 1],
+                            label='(PM B to M1 A)')
+                axx.scatter(tt,
+                            w_rec[3, 7, sim, :trl + 1],
+                            label='(PM B to M1 B)')
+                axx.plot(tt, w_rec[2, 6, sim, :trl + 1])
+                axx.plot(tt, w_rec[2, 7, sim, :trl + 1])
+                axx.plot(tt, w_rec[3, 6, sim, :trl + 1])
+                axx.plot(tt, w_rec[3, 7, sim, :trl + 1])
+                axx.set_ylim(-0.1, 1.4)
+                axx.legend(loc='upper right', ncol=4)
 
                 net_labs = ['DMS', 'Premotor', 'DLS', 'Motor']
                 for ii, jj in enumerate(range(0, n_cells, 2)):
                     ax_v = ax[ii + 2][0]
                     ax_g = ax_v.twinx()
-                    ax_v.plot(t, v[jj, :], color='C0', label=net_labs[ii] + ' A')
-                    ax_g.plot(t, g[jj, :], color='C1', label=net_labs[ii] + ' A')
+                    ax_v.plot(t,
+                              v[jj, :],
+                              color='C0',
+                              label=net_labs[ii] + ' A')
+                    ax_g.plot(t,
+                              g[jj, :],
+                              color='C1',
+                              label=net_labs[ii] + ' A')
                     ax_v.legend(loc='upper right')
                     ax_g.legend(loc='upper right')
 
                     ax_v = ax[ii + 2][1]
                     ax_g = ax_v.twinx()
-                    ax_v.plot(t, v[jj + 1, :], color='C0', label=net_labs[ii] + ' B')
-                    ax_g.plot(t, g[jj + 1, :], color='C1', label=net_labs[ii] + ' B')
+                    ax_v.plot(t,
+                              v[jj + 1, :],
+                              color='C0',
+                              label=net_labs[ii] + ' B')
+                    ax_g.plot(t,
+                              g[jj + 1, :],
+                              color='C1',
+                              label=net_labs[ii] + ' B')
                     ax_v.legend(loc='upper right')
                     ax_g.legend(loc='upper right')
 
@@ -701,7 +766,7 @@ def plot_simulation_2(fig_label):
 
 
 n_simulations = 1
-n_trials = 100
+n_trials = 200
 
 lesioned_trials = []
 lesion_cell_inds = []
