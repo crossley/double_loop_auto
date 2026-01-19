@@ -26,8 +26,8 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
     nmda_thresh = 0.0
 
     # stage 1 sub-cortical
-    alpha_w_vis_dms = 5e-9
-    beta_w_vis_dms = 5e-9 * 0
+    alpha_w_vis_dms = 2e-9
+    beta_w_vis_dms = 2e-9 * 0
     gamma_w_vis_dms = 0.0
 
     # stage 2 sub-cortical
@@ -36,12 +36,12 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
     gamma_w_premotor_dls = 0.0
 
     # stage 1 cortical
-    alpha_w_vis_premotor = 0
-    beta_w_vis_premotor = 0
+    alpha_w_vis_premotor = 5e-11
+    beta_w_vis_premotor = 5e-11
 
     # stage 2 cortical
-    alpha_w_premotor_motor = 0
-    beta_w_premotor_motor = 0
+    alpha_w_premotor_motor = 2e-18
+    beta_w_premotor_motor = 2e-18
 
     vis_dim = 100
     vis_amp = 7
@@ -111,6 +111,9 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
     g_rec = np.zeros((n_cells, n_simulations, n_trials, n_steps))
     spike_rec = np.zeros((n_cells, n_simulations, n_trials, n_steps))
     w_rec = np.zeros((n_cells, n_cells, n_simulations, n_trials))
+    w_sub_stage_1_rec = np.zeros((vis_dim, vis_dim, n_simulations, n_trials))
+    w_sub_stage_2_rec = np.zeros((vis_dim, vis_dim, n_simulations, n_trials))
+    w_ctx_stage_1_rec = np.zeros((vis_dim, vis_dim, n_simulations, n_trials))
 
     for sim in range(n_simulations):
 
@@ -229,6 +232,7 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
                 u[mask, i] += d[mask]
                 spike[mask, i] = 1
 
+
 #                # response
 #                if (g[6, i] - g[7, i]) > resp_thresh:
 #                    resp[sim, trl] = 0
@@ -268,7 +272,7 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
 #                g[6, :].fill(0)
 #                v[6, :].fill(izp[6, 1])
 
-            # pick a response if it hasn't happened already
+# pick a response if it hasn't happened already
             if rt[sim, trl] == 0:
                 rt[sim, trl] = i
                 if g[6, :].sum() > g[7, :].sum():
@@ -298,26 +302,33 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
                     pre_activity = vis[ii, jj]
 
                     post_activity = dms_A
-                    dw_1 = alpha_w_vis_dms * pre_activity * np.clip( post_activity - nmda_thresh, 0, None) * np.clip( rpe[sim, trl], 0, None) * (1 - w_vis_dms_A[ii, jj])
-                    dw_2 = beta_w_vis_dms * pre_activity * np.clip( post_activity - nmda_thresh, 0, None) * np.clip( rpe[sim, trl], None, 0) * w_vis_dms_A[ii, jj]
-                    dw_3 = -gamma_w_vis_dms * pre_activity * np.clip( nmda_thresh - post_activity, 0, None) * w_vis_dms_A[ii, jj]
+                    dw_1 = alpha_w_vis_dms * pre_activity * np.clip(
+                        post_activity - nmda_thresh, 0, None) * np.clip(
+                            rpe[sim, trl], 0, None) * (1 - w_vis_dms_A[ii, jj])
+                    dw_2 = beta_w_vis_dms * pre_activity * np.clip(
+                        post_activity - nmda_thresh, 0, None) * np.clip(
+                            rpe[sim, trl], None, 0) * w_vis_dms_A[ii, jj]
+                    dw_3 = -gamma_w_vis_dms * pre_activity * np.clip(
+                        nmda_thresh - post_activity, 0, None) * w_vis_dms_A[ii,
+                                                                            jj]
                     w_vis_dms_A[ii, jj] += dw_1 + dw_2 + dw_3
                     w_vis_dms_A[ii, jj] = np.clip(w_vis_dms_A[ii, jj], 0, 1)
 
                     post_activity = dms_B
-                    dw_1 = alpha_w_vis_dms * pre_activity * np.clip( post_activity - nmda_thresh, 0, None) * np.clip( rpe[sim, trl], 0, None) * (1 - w_vis_dms_B[ii, jj])
-                    dw_2 = beta_w_vis_dms * pre_activity * np.clip( post_activity - nmda_thresh, 0, None) * np.clip( rpe[sim, trl], None, 0) * w_vis_dms_B[ii, jj]
-                    dw_3 = -gamma_w_vis_dms * pre_activity * np.clip( nmda_thresh - post_activity, 0, None) * w_vis_dms_B[ii, jj]
+                    dw_1 = alpha_w_vis_dms * pre_activity * np.clip(
+                        post_activity - nmda_thresh, 0, None) * np.clip(
+                            rpe[sim, trl], 0, None) * (1 - w_vis_dms_B[ii, jj])
+                    dw_2 = beta_w_vis_dms * pre_activity * np.clip(
+                        post_activity - nmda_thresh, 0, None) * np.clip(
+                            rpe[sim, trl], None, 0) * w_vis_dms_B[ii, jj]
+                    dw_3 = -gamma_w_vis_dms * pre_activity * np.clip(
+                        nmda_thresh - post_activity, 0, None) * w_vis_dms_B[ii,
+                                                                            jj]
                     w_vis_dms_B[ii, jj] += dw_1 + dw_2 + dw_3
                     w_vis_dms_B[ii, jj] = np.clip(w_vis_dms_B[ii, jj], 0, 1)
 
             # NOTE: 3-factor premotor-dls
-            synapses = np.array([
-                (2, 4),
-                (2, 5),
-                (3, 4),
-                (3, 5)
-            ])
+            synapses = np.array([(2, 4), (2, 5), (3, 4), (3, 5)])
 
             # Extract presynaptic and postsynaptic indices
             pre_indices = synapses[:, 0]
@@ -328,14 +339,22 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
             post_activity = g[post_indices, :].sum(axis=1)
 
             # Vectorized weight update components
-            dw_1 = alpha_w_premotor_dls * pre_activity * np.clip( post_activity - nmda_thresh, 0, None) * np.clip( rpe[sim, trl], 0, None) * (1 - w[pre_indices, post_indices])
-            dw_2 = beta_w_premotor_dls * pre_activity * np.clip( post_activity - nmda_thresh, 0, None) * np.clip( rpe[sim, trl], None, 0) * w[pre_indices, post_indices]
-            dw_3 = -gamma_w_premotor_dls * pre_activity * np.clip( nmda_thresh - post_activity, 0, None) * w[pre_indices, post_indices]
+            dw_1 = alpha_w_premotor_dls * pre_activity * np.clip(
+                post_activity - nmda_thresh, 0, None) * np.clip(
+                    rpe[sim, trl], 0,
+                    None) * (1 - w[pre_indices, post_indices])
+            dw_2 = beta_w_premotor_dls * pre_activity * np.clip(
+                post_activity - nmda_thresh, 0, None) * np.clip(
+                    rpe[sim, trl], None, 0) * w[pre_indices, post_indices]
+            dw_3 = -gamma_w_premotor_dls * pre_activity * np.clip(
+                nmda_thresh - post_activity, 0, None) * w[pre_indices,
+                                                          post_indices]
 
             # Apply the total weight change
             dw = dw_1 + dw_2 + dw_3
             w[pre_indices, post_indices] += dw
-            w[pre_indices, post_indices] = np.clip(w[pre_indices, post_indices], 0, 1)
+            w[pre_indices,
+              post_indices] = np.clip(w[pre_indices, post_indices], 0, 1)
 
             # NOTE: 2-factor vis-premotor
             pm_A = g[2, :].sum()
@@ -402,15 +421,166 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
             spike_rec[:, sim, trl, :] = spike
             w_rec[:, :, sim, trl] = w
 
-            print(f"Cat: {cat[sim, trl]}, Resp: {resp[sim, trl]}, Acc: {cat[sim, trl] == resp[sim, trl]}")
+            print(
+                f"Cat: {cat[sim, trl]}, Resp: {resp[sim, trl]}, Acc: {cat[sim, trl] == resp[sim, trl]}"
+            )
             print(f"P: {p[sim, trl]}, RPE: {rpe[sim, trl]}")
 
+            #             if trl % (n_trials - 2) == 0 and trl > 0:
+            #             # if True:
+            #
+            #                 fig = plt.figure(figsize=(15, 7.5))
+            #                 gs = plt.GridSpec(9, 8)
+            #                 gs.update(hspace=2.5, wspace=2.5)
+            #                 ax = [
+            #                     [
+            #                         fig.add_subplot(gs[0:2, 0:2]),
+            #                         fig.add_subplot(gs[0:2, 2:4]),
+            #                         fig.add_subplot(gs[2:4, 0:2]),
+            #                         fig.add_subplot(gs[2:4, 2:4])
+            #                     ],
+            #                     [
+            #                         fig.add_subplot(gs[0:2, 4:8]),
+            #                         fig.add_subplot(gs[2:4, 4:8])
+            #                     ],
+            #                     [fig.add_subplot(gs[4, :4]),
+            #                      fig.add_subplot(gs[4, 4:])],
+            #                     [fig.add_subplot(gs[5, :4]),
+            #                      fig.add_subplot(gs[5, 4:])],
+            #                     [fig.add_subplot(gs[6, :4]),
+            #                      fig.add_subplot(gs[6, 4:])],
+            #                     [fig.add_subplot(gs[7, :4]),
+            #                      fig.add_subplot(gs[7, 4:])],
+            #                     [fig.add_subplot(gs[8, :4]),
+            #                      fig.add_subplot(gs[8, 4:])],
+            #                 ]
+            #
+            #                 axx = ax[0][0]
+            #                 im0 = axx.imshow(w_vis_dms_A, cmap="viridis")
+            #                 axx.set_title("w_vis_dms_A (current)")
+            #                 axx.invert_yaxis()
+            #                 plt.colorbar(im0, ax=axx, fraction=0.046, pad=0.04)
+            #
+            #                 axx = ax[0][1]
+            #                 im1 = axx.imshow(w_vis_dms_B, cmap="viridis")
+            #                 axx.set_title("w_vis_dms_B (current)")
+            #                 axx.invert_yaxis()
+            #                 plt.colorbar(im1, ax=axx, fraction=0.046, pad=0.04)
+            #
+            #                 # axx = ax[0][2]
+            #                 # im2 = axx.imshow(vis, cmap="viridis")
+            #                 # axx.set_title("vis (current)")
+            #                 # axx.invert_yaxis()
+            #                 # plt.colorbar(im2, ax=axx, fraction=0.046, pad=0.04)
+            #
+            #                 # axx = ax[0][3]
+            #                 # im3 = axx.imshow(vis, cmap="viridis")
+            #                 # axx.set_title("vis (current)")
+            #                 # axx.invert_yaxis()
+            #                 # plt.colorbar(im3, ax=axx, fraction=0.046, pad=0.04)
+            #
+            #                 axx = ax[0][2]
+            #                 im2 = axx.imshow(w_vis_pm_A, cmap="viridis", vmin=0, vmax=1)
+            #                 axx.set_title("w_vis_pm_A (current)")
+            #                 axx.invert_yaxis()
+            #                 plt.colorbar(im2, ax=axx, fraction=0.046, pad=0.04)
+            #
+            #                 axx = ax[0][3]
+            #                 im3 = axx.imshow(w_vis_pm_B, cmap="viridis", vmin=0, vmax=1)
+            #                 axx.set_title("w_vis_pm_B (current)")
+            #                 axx.invert_yaxis()
+            #                 plt.colorbar(im3, ax=axx, fraction=0.046, pad=0.04)
+            #
+            #                 # plot premotor to dls weights
+            #                 tt = np.arange(0, trl + 1)
+            #                 axx = ax[1][0]
+            #                 axx.scatter(tt,
+            #                             w_rec[2, 4, sim, :trl + 1],
+            #                             label='(PM A to DLS A)')
+            #                 axx.scatter(tt,
+            #                             w_rec[2, 5, sim, :trl + 1],
+            #                             label='(PM A to DLS B)')
+            #                 axx.scatter(tt,
+            #                             w_rec[3, 4, sim, :trl + 1],
+            #                             label='(PM B to DLS A)')
+            #                 axx.scatter(tt,
+            #                             w_rec[3, 5, sim, :trl + 1],
+            #                             label='(PM B to DLS B)')
+            #                 axx.plot(tt, w_rec[2, 4, sim, :trl + 1])
+            #                 axx.plot(tt, w_rec[2, 5, sim, :trl + 1])
+            #                 axx.plot(tt, w_rec[3, 4, sim, :trl + 1])
+            #                 axx.plot(tt, w_rec[3, 5, sim, :trl + 1])
+            #                 # axx.set_ylim(-0.1, 1.5)
+            #                 axx.legend(loc='upper right', ncol=4, bbox_to_anchor=(1.2, 1.4))
+            #
+            #                 # scatter premotor to motor weights
+            #                 axx = ax[1][1]
+            #                 axx.scatter(tt,
+            #                             w_rec[2, 6, sim, :trl + 1],
+            #                             label='(PM A to M1 A)')
+            #                 axx.scatter(tt,
+            #                             w_rec[2, 7, sim, :trl + 1],
+            #                             label='(PM A to M1 B)')
+            #                 axx.scatter(tt,
+            #                             w_rec[3, 6, sim, :trl + 1],
+            #                             label='(PM B to M1 A)')
+            #                 axx.scatter(tt,
+            #                             w_rec[3, 7, sim, :trl + 1],
+            #                             label='(PM B to M1 B)')
+            #                 axx.plot(tt, w_rec[2, 6, sim, :trl + 1])
+            #                 axx.plot(tt, w_rec[2, 7, sim, :trl + 1])
+            #                 axx.plot(tt, w_rec[3, 6, sim, :trl + 1])
+            #                 axx.plot(tt, w_rec[3, 7, sim, :trl + 1])
+            #                 axx.set_ylim(-0.1, 1.5)
+            #                 # axx.legend(loc='upper right', ncol=4, bbox_to_anchor=(1.2, 1.4))
+            #
+            #                 net_labs = ['DMS', 'Premotor', 'DLS', 'Motor']
+            #                 for ii, jj in enumerate(range(0, n_cells, 2)):
+            #                     ax_v = ax[ii + 2][0]
+            #                     ax_g = ax_v.twinx()
+            #                     ax_v.plot(t,
+            #                               v[jj, :],
+            #                               color='C0',
+            #                               label=net_labs[ii] + ' A',
+            #                               alpha=0.5)
+            #                     ax_g.plot(t,
+            #                               g[jj, :],
+            #                               color='C1',
+            #                               label=net_labs[ii] + ' A')
+            #                     ax_v.legend(loc='upper right')
+            #                     ax_g.legend(loc='upper right')
+            #
+            #                     ax_v = ax[ii + 2][1]
+            #                     ax_g = ax_v.twinx()
+            #                     ax_v.plot(t,
+            #                               v[jj + 1, :],
+            #                               color='C0',
+            #                               label=net_labs[ii] + ' B',
+            #                               alpha=0.5)
+            #                     ax_g.plot(t,
+            #                               g[jj + 1, :],
+            #                               color='C1',
+            #                               label=net_labs[ii] + ' B')
+            #                     ax_v.legend(loc='upper right')
+            #                     ax_g.legend(loc='upper right')
+            #
+            #                 axx = ax[6][0]
+            #                 axx.plot(tt, r[sim, :trl + 1], label='Reward', color='C0')
+            #                 axx.plot(tt, p[sim, :trl + 1], label='Predicted Reward', color='C1')
+            #                 axx.plot(tt, rpe[sim, :trl + 1], label='RPE', color='C2')
+            #
+            #                 axx = ax[6][1]
+            #                 axx.plot(tt, cat[sim, :trl + 1], label='Category', color='C0')
+            #                 axx.plot(tt, resp[sim, :trl + 1], label='Response', color='C1')
+            #
+            #                 fig.suptitle(f"Sim {sim} | Trial {trl}", fontsize=14)
+            #                 plt.show()
 
             if trl % (n_trials - 2) == 0 and trl > 0:
-            # if True:
+                # if True:
 
                 fig = plt.figure(figsize=(15, 7.5))
-                gs = plt.GridSpec(8, 8)
+                gs = plt.GridSpec(6, 4)
                 gs.update(hspace=2.5, wspace=2.5)
                 ax = [
                     [
@@ -420,17 +590,11 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
                         fig.add_subplot(gs[2:4, 2:4])
                     ],
                     [
-                        fig.add_subplot(gs[0:2, 4:8]),
-                        fig.add_subplot(gs[2:4, 4:8])
+                        fig.add_subplot(gs[4, :]),
+                        fig.add_subplot(gs[5, :])
+                        fig.add_subplot(gs[6, :])
+                        fig.add_subplot(gs[7, :])
                     ],
-                    [fig.add_subplot(gs[4, :4]),
-                     fig.add_subplot(gs[4, 4:])],
-                    [fig.add_subplot(gs[5, :4]),
-                     fig.add_subplot(gs[5, 4:])],
-                    [fig.add_subplot(gs[6, :4]),
-                     fig.add_subplot(gs[6, 4:])],
-                    [fig.add_subplot(gs[7, :4]),
-                     fig.add_subplot(gs[7, 4:])],
                 ]
 
                 axx = ax[0][0]
@@ -446,32 +610,26 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
                 plt.colorbar(im1, ax=axx, fraction=0.046, pad=0.04)
 
                 axx = ax[0][2]
-                im2 = axx.imshow(vis, cmap="viridis")
-                axx.set_title("vis (current)")
+                im2 = axx.imshow(w_vis_pm_A, cmap="viridis", vmin=0, vmax=1)
+                axx.set_title("w_vis_pm_A (current)")
                 axx.invert_yaxis()
                 plt.colorbar(im2, ax=axx, fraction=0.046, pad=0.04)
 
                 axx = ax[0][3]
-                im3 = axx.imshow(vis, cmap="viridis")
-                axx.set_title("vis (current)")
+                im3 = axx.imshow(w_vis_pm_B, cmap="viridis", vmin=0, vmax=1)
+                axx.set_title("w_vis_pm_B (current)")
                 axx.invert_yaxis()
                 plt.colorbar(im3, ax=axx, fraction=0.046, pad=0.04)
 
-                # axx = ax[0][2]
-                # im2 = axx.imshow(w_vis_pm_A, cmap="viridis", vmin=0, vmax=1)
-                # axx.set_title("w_vis_pm_A (current)")
-                # axx.invert_yaxis()
-                # plt.colorbar(im2, ax=axx, fraction=0.046, pad=0.04)
-
-                # axx = ax[0][3]
-                # im3 = axx.imshow(w_vis_pm_B, cmap="viridis", vmin=0, vmax=1)
-                # axx.set_title("w_vis_pm_B (current)")
-                # axx.invert_yaxis()
-                # plt.colorbar(im3, ax=axx, fraction=0.046, pad=0.04)
+                # TODO: PICK UP HERE --- NEED TO IMPLEMENT RECORDS FOR THESE I THINK
+                # plot average of w_vis_pm_A and w_vis_pm_B weights over all vis_dim as scatter across trials
+                axx = ax[1][0]
+                w_vis_pm_A_avg = np.mean(w_vis_pm_A)
+                w_vis_pm_B_avg = np.mean(w_vis_pm_B)
 
                 # plot premotor to dls weights
                 tt = np.arange(0, trl + 1)
-                axx = ax[1][0]
+                axx = ax[2][0]
                 axx.scatter(tt,
                             w_rec[2, 4, sim, :trl + 1],
                             label='(PM A to DLS A)')
@@ -489,10 +647,12 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
                 axx.plot(tt, w_rec[3, 4, sim, :trl + 1])
                 axx.plot(tt, w_rec[3, 5, sim, :trl + 1])
                 # axx.set_ylim(-0.1, 1.5)
-                axx.legend(loc='upper right', ncol=4, bbox_to_anchor=(1.2, 1.4))
+                axx.legend(loc='upper right',
+                           ncol=4,
+                           bbox_to_anchor=(1.2, 1.4))
 
                 # scatter premotor to motor weights
-                axx = ax[1][1]
+                axx = ax[3][1]
                 axx.scatter(tt,
                             w_rec[2, 6, sim, :trl + 1],
                             label='(PM A to M1 A)')
@@ -510,37 +670,21 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
                 axx.plot(tt, w_rec[3, 6, sim, :trl + 1])
                 axx.plot(tt, w_rec[3, 7, sim, :trl + 1])
                 axx.set_ylim(-0.1, 1.5)
-                # axx.legend(loc='upper right', ncol=4, bbox_to_anchor=(1.2, 1.4))
+                axx.legend(loc='upper right',
+                           ncol=4,
+                           bbox_to_anchor=(1.2, 1.4))
 
-                net_labs = ['DMS', 'Premotor', 'DLS', 'Motor']
-                for ii, jj in enumerate(range(0, n_cells, 2)):
-                    ax_v = ax[ii + 2][0]
-                    ax_g = ax_v.twinx()
-                    ax_v.plot(t,
-                              v[jj, :],
-                              color='C0',
-                              label=net_labs[ii] + ' A',
-                              alpha=0.5)
-                    ax_g.plot(t,
-                              g[jj, :],
-                              color='C1',
-                              label=net_labs[ii] + ' A')
-                    ax_v.legend(loc='upper right')
-                    ax_g.legend(loc='upper right')
+                axx = ax[4][0]
+                axx.plot(tt, r[sim, :trl + 1], label='Reward', color='C0')
+                axx.plot(tt,
+                         p[sim, :trl + 1],
+                         label='Predicted Reward',
+                         color='C1')
+                axx.plot(tt, rpe[sim, :trl + 1], label='RPE', color='C2')
 
-                    ax_v = ax[ii + 2][1]
-                    ax_g = ax_v.twinx()
-                    ax_v.plot(t,
-                              v[jj + 1, :],
-                              color='C0',
-                              label=net_labs[ii] + ' B',
-                              alpha=0.5)
-                    ax_g.plot(t,
-                              g[jj + 1, :],
-                              color='C1',
-                              label=net_labs[ii] + ' B')
-                    ax_v.legend(loc='upper right')
-                    ax_g.legend(loc='upper right')
+                axx = ax[5][1]
+                axx.plot(tt, cat[sim, :trl + 1], label='Category', color='C0')
+                axx.plot(tt, resp[sim, :trl + 1], label='Response', color='C1')
 
                 fig.suptitle(f"Sim {sim} | Trial {trl}", fontsize=14)
                 plt.show()
@@ -798,12 +942,16 @@ def plot_simulation_2(fig_label):
 
 
 n_simulations = 1
-n_trials = 50
+n_trials = 10
+
+# lesioned_trials = np.arange(100, n_trials)
+# lesion_cell_inds = np.array([0, 1])
 
 lesioned_trials = []
 lesion_cell_inds = []
-lesion_mean = 1
+
+lesion_mean = 0
 lesion_sd = 0
 fig_label = 'cat_learn'
 simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd, fig_label)
-plot_simulation(fig_label)
+# plot_simulation(fig_label)
