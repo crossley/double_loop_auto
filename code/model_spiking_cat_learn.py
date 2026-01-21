@@ -18,21 +18,19 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd, fig_labe
 
     nmda_thresh = 0.0
 
-    # NOTE have to change these
-    alpha_w_vis_dms = 5e-15
-    beta_w_vis_dms = 5e-15
+    alpha_w_vis_dms = 5e-8
+    beta_w_vis_dms = 5e-8
     gamma_w_vis_dms = 0.0
 
-    alpha_w_premotor_dls = 1e-15
-    beta_w_premotor_dls = 1e-15
+    alpha_w_premotor_dls = 1e-8
+    beta_w_premotor_dls = 1e-8
     gamma_w_premotor_dls = 0.0
 
-    # NOTE have to change these also
-    alpha_w_vis_premotor = 1e-16
-    beta_w_vis_premotor = 1e-16
+    alpha_w_vis_premotor = 1e-8
+    beta_w_vis_premotor = 1e-8
 
-    alpha_w_premotor_motor = 3e-17
-    beta_w_premotor_motor = 3e-17
+    alpha_w_premotor_motor = 3e-9
+    beta_w_premotor_motor = 3e-9
 
     cat = np.zeros((n_simulations, n_trials))        # cat of stim shown
     resp = np.zeros((n_simulations, n_trials))       # network response
@@ -43,7 +41,8 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd, fig_labe
 
     # create vis units
     vis_dim = 100
-    vis_sigma = 10
+    vis_amp = 150
+    vis_sigma = 15
     vis = np.zeros((vis_dim, vis_dim))
 
     izp = np.array([
@@ -72,7 +71,6 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd, fig_labe
 
     n_cells = izp.shape[0]
 
-    vis_amp = 150
     psp_amp = 1e5
     psp_decay = 100
     resp_thresh = 1e4
@@ -108,7 +106,7 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd, fig_labe
 
         # dms->premotor: one to one
         w[0, 2] = 0.04
-        w[0, 2] = 0
+        w[0, 3] = 0
         w[1, 3] = 0
         w[1, 3] = 0.04
 
@@ -125,14 +123,8 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd, fig_labe
         w[5, 7] = 0.04
 
         # vis->premotor: fully connected
-        # NOTE DOUBLE CHECK THESE, IS THIS OKAY? 
         w_vis_pm_A = np.random.uniform(0.001, 0.01, (vis_dim, vis_dim))
         w_vis_pm_B = np.random.uniform(0.001, 0.01, (vis_dim, vis_dim))
-
-        # w[0, 2] = np.random.uniform(0.001, 0.01)
-        # w[0, 3] = np.random.uniform(0.001, 0.01)
-        # w[1, 2] = np.random.uniform(0.001, 0.01)
-        # w[1, 3] = np.random.uniform(0.001, 0.01)
 
         # premotor->motor: fully connected
         w[2, 6] = np.random.uniform(0.001, 0.01)
@@ -165,22 +157,30 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd, fig_labe
             # trial info
             x = ds["x"][trl]
             y = ds["y"][trl]
-            cat = ds["cat"][trl]
+            cat[sim, trl] = ds["cat"][trl]
 
             # visual input
             xg, yg = np.meshgrid(np.arange(0, vis_dim, 1), np.arange(0, vis_dim, 1))
 
             vis = np.exp(-(((xg - x) ** 2 + (yg - y) ** 2) / (2 * vis_sigma**2)))
-            vis_rec.append(vis)
 
             # NOTE why no index by sim and trl? 
             vis_act_A = np.dot(vis.flatten(), w_vis_dms_A.flatten())
             vis_act_B = np.dot(vis.flatten(), w_vis_dms_B.flatten())
 
+            # external inputs (vis to DMS)
+            I_ext[0, n_steps // 3: 2 * n_steps // 3] = vis_act_A
+            I_ext[1, n_steps // 3: 2 * n_steps // 3] = vis_act_B
+
+            # NOTE prior to adding this, pm_A and pm_B g = 0, with this, they are non-0 
+            # I_ext[2, n_steps // 3: 2 * n_steps // 3] = vis_act_A
+            # I_ext[3, n_steps // 3: 2 * n_steps // 3] = vis_act_B
+
             # # normalising - turning off for the moment
             # total = dms_A[sim, trl] + dms_B[sim, trl]
             # dms_A[sim, trl] /= total
             # dms_B[sim, trl] /= total
+
 
             for i in range(1, n_steps):
 
@@ -202,7 +202,7 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd, fig_labe
                 v[:, i] = v[:, i - 1] + dvdt * dt
                 u[:, i] = u[:, i - 1] + dudt * dt
                 g[:, i] = g[:, i - 1] + dgdt * dt
-
+                
                 mask = v[:, i] >= vpeak
                 v[mask, i - 1] = vpeak[mask]
                 v[mask, i] = c[mask]
@@ -223,7 +223,7 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd, fig_labe
             if rt[sim, trl] == 0:
                 rt[sim, trl] = i
                 if g[6, i] != g[7, i]:
-                    resp[sim, trl] = np.argmax(g[6:9, i])
+                    resp[sim, trl] = np.argmax(g[6:8, i])
                 else:
                     resp[sim, trl] = np.random.choice([0, 1])
 
@@ -239,40 +239,40 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd, fig_labe
 
             # NOTE: 3-factor vis-dms
             # NOTE WEIRD FUKY CHANGES HERE
+            dms_A = g[0, :].sum()
+            dms_B = g[1, :].sum()
             
             for ii in range(vis_dim): 
                 for jj in range(vis_dim): 
 
-                    pre_activity = 
-                    post_activity = g[0, :].sum(axis=1)
-                    
-                    dw_1_vis_dms_A = alpha_w_vis_dms * pre_activity * np.clip( post_activity - nmda_thresh, 0, None) * np.clip( rpe[sim, trl], 0, None) * (1 - w_vis_dms_A[vis_dim, vis_dim])
-                    dw_2_vis_dms_A = beta_w_vis_dms * pre_activity * np.clip( post_activity - nmda_thresh, 0, None) * np.clip( rpe[sim, trl], None, 0) * w_vis_dms_A[vis_dim, vis_dim]
-                    dw_3_vis_dms_A = -gamma_w_vis_dms * pre_activity * np.clip( nmda_thresh - post_activity, 0, None) * w_vis_dms_A[vis_dim, vis_dim]
+                    pre_activity = vis[ii, jj] 
+                    post_activity = dms_A
+
+                    dw_1_vis_dms_A = alpha_w_vis_dms * pre_activity * np.clip( post_activity - nmda_thresh, 0, None) * np.clip( rpe[sim, trl], 0, None) * (1 - w_vis_dms_A[ii, jj])
+                    dw_2_vis_dms_A = beta_w_vis_dms * pre_activity * np.clip( post_activity - nmda_thresh, 0, None) * np.clip( rpe[sim, trl], None, 0) * w_vis_dms_A[ii, jj]
+                    dw_3_vis_dms_A = -gamma_w_vis_dms * pre_activity * np.clip( nmda_thresh - post_activity, 0, None) * w_vis_dms_A[ii, jj]
 
                     # apply the total weight change
-                    dw = dw_1_vis_dms_A + dw_2_vis_dms_A + dw_3_vis_dms_A
-                    w_vis_dms_A[vis_dim, vis_dim] += dw
-                    w_vis_dms_A[vis_dim, vis_dim] = np.clip(w_vis_dms_A[vis_dim, vis_dim], 0, 1)
+                    w_vis_dms_A[ii, jj] += dw_1_vis_dms_A + dw_2_vis_dms_A + dw_3_vis_dms_A
+                    w_vis_dms_A[ii, jj] = np.clip(w_vis_dms_A[ii, jj], 0, 1)
 
-                    pre_activity = # sum of all vis activity? 
-                    post_activity = g[1, :].sum(axis=1)
-                    
-                    dw_1_vis_dms_B = alpha_w_vis_dms * pre_activity * np.clip( post_activity - nmda_thresh, 0, None) * np.clip( rpe[sim, trl], 0, None) * (1 - w_vis_dms_B[vis_dim, vis_dim])
-                    dw_2_vis_dms_B = beta_w_vis_dms * pre_activity * np.clip( post_activity - nmda_thresh, 0, None) * np.clip( rpe[sim, trl], None, 0) * w_vis_dms_B[vis_dim, vis_dim]
-                    dw_3_vis_dms_B = -gamma_w_vis_dms * pre_activity * np.clip( nmda_thresh - post_activity, 0, None) * w_vis_dms_B[vis_dim, vis_dim]
+                    pre_activity = vis[ii, jj] 
+                    post_activity = dms_B
+
+                    dw_1_vis_dms_B = alpha_w_vis_dms * pre_activity * np.clip( post_activity - nmda_thresh, 0, None) * np.clip( rpe[sim, trl], 0, None) * (1 - w_vis_dms_B[ii, jj])
+                    dw_2_vis_dms_B = beta_w_vis_dms * pre_activity * np.clip( post_activity - nmda_thresh, 0, None) * np.clip( rpe[sim, trl], None, 0) * w_vis_dms_B[ii, jj]
+                    dw_3_vis_dms_B = -gamma_w_vis_dms * pre_activity * np.clip( nmda_thresh - post_activity, 0, None) * w_vis_dms_B[ii, jj]
 
                     # apply the total weight change
-                    dw = dw_1_vis_dms_B + dw_2_vis_dms_B + dw_3_vis_dms_B
-                    w_vis_dms_B[vis_dim, vis_dim] += dw
-                    w_vis_dms_B[vis_dim, vis_dim] = np.clip(w_vis_dms_B[vis_dim, vis_dim], 0, 1)
+                    w_vis_dms_B[ii, jj] += dw_1_vis_dms_B + dw_2_vis_dms_B + dw_3_vis_dms_B
+                    w_vis_dms_B[ii, jj] = np.clip(w_vis_dms_B[ii, jj], 0, 1)
 
             # NOTE: 3-factor premotor-dls
             synapses = np.array([
-                (4, 6),
-                (4, 7),
-                (5, 6),
-                (5, 7)  # premotor->dls
+                (2, 4),
+                (2, 5),
+                (3, 4),
+                (3, 5)  # premotor->dls
             ])
 
             # Extract presynaptic and postsynaptic indices
@@ -296,40 +296,47 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd, fig_labe
 
             # NOTE: 2-factor vis-premotor
             # NOTE WEIRD FUNKY SHIT HERE AGAIN BUT WIHTOUT GAMMA
+            pm_A = g[2, :].sum()
+            pm_B = g[3, :].sum()
+
+            print('pm_A ', pm_A,'pm_B ', pm_B) 
 
             for ii in range(vis_dim):
                 for jj in range(vis_dim):
                     
-                    pre_acivity = 
-                    post_activity = g[2, :].sum(axis=1)
+                    pre_activity = vis[ii, jj] 
+                    post_activity = pm_A
 
                     # Vectorized weight update components
-                    dw_1_vis_pm_A = alpha_w_vis_premotor * pre_activity * np.clip(post_activity - nmda_thresh, 0, None) * (1 - w_vis_pm_A[vis_dim, vis_dim])
-                    dw_2_vis_pm_A = -beta_w_vis_premotor * pre_activity * np.clip(nmda_thresh - post_activity, 0, None) * w_vis_pm_A[vis_dim, vis_dim] 
+                    dw_1_vis_pm_A = alpha_w_vis_premotor * pre_activity * np.clip(post_activity - nmda_thresh, 0, None) * (1 - w_vis_pm_A[ii, jj])
+                    dw_2_vis_pm_A = -beta_w_vis_premotor * pre_activity * np.clip(nmda_thresh - post_activity, 0, None) * w_vis_pm_A[ii, jj] 
 
+                    print('pre A', pre_activity)
+                    # print('post A', post_activity)
+                    # print('dw_1_vis_pm_A ', dw_1_vis_pm_A)
+                    # print('dw_2_vis_pm_A ', dw_2_vis_pm_A)
+                    
                     # Apply the total weight change
-                    dw = dw_1_vis_pm_A + dw_2_vis_pm_A
-                    w_vis_pm_A[vis_dim, vis_dim] += dw
-                    w_vis_pm_A[vis_dim, vis_dim] = np.clip(w_vis_pm_A[vis_dim, vis_dim], 0, 1)
+                    w_vis_pm_A[ii, jj] += dw_1_vis_pm_A + dw_2_vis_pm_A
+                    w_vis_pm_A[ii, jj] = np.clip(w_vis_pm_A[ii, jj], 0, 1)
 
-                    pre_acivity = 
-                    post_activity = g[3, :].sum(axis=1)
+                    pre_activity = vis[ii, jj]
+                    post_activity = pm_B
 
                     # Vectorized weight update components
-                    dw_1_vis_pm_B = alpha_w_vis_premotor * pre_activity * np.clip(post_activity - nmda_thresh, 0, None) * (1 - w_vis_pm_A[vis_dim, vis_dim])
-                    dw_2_vis_pm_B = -beta_w_vis_premotor * pre_activity * np.clip(nmda_thresh - post_activity, 0, None) * w_vis_pm_A[vis_dim, vis_dim]
+                    dw_1_vis_pm_B = alpha_w_vis_premotor * pre_activity * np.clip(post_activity - nmda_thresh, 0, None) * (1 - w_vis_pm_B[ii, jj])
+                    dw_2_vis_pm_B = -beta_w_vis_premotor * pre_activity * np.clip(nmda_thresh - post_activity, 0, None) * w_vis_pm_B[ii, jj]
 
                     # Apply the total weight change
-                    dw = dw_1_vis_pm_B + dw_2_vis_pm_B
-                    w_vis_pm_B[vis_dim, vis_dim] += dw
-                    w_vis_pm_B[vis_dim, vis_dim] = np.clip(w_vis_pm_B[vis_dim, vis_dim], 0, 1)
+                    w_vis_pm_B[ii, jj] += dw_1_vis_pm_B + dw_2_vis_pm_B
+                    w_vis_pm_B[ii, jj] = np.clip(w_vis_pm_B[ii, jj], 0, 1)
 
             # NOTE: 2-factor premotor-motor 
             synapses = np.array([
-                (4, 8),
-                (4, 9),
-                (5, 8),
-                (5, 9)  # premotor->motor
+                (2, 6),
+                (2, 7),
+                (3, 6),
+                (3, 7)  # premotor->motor
             ])
 
             # Extract presynaptic and postsynaptic indices
