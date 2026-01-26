@@ -9,7 +9,7 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
 
     ds = make_stim_cats(n_trials // 2)
 
-    # np.random.seed(0)
+    np.random.seed(0)
 
     tau = 1
     T = 3000
@@ -31,12 +31,12 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
     gamma_w_premotor_dls = 0.0
 
     # stage 1 cortical
-    alpha_w_vis_premotor = 5e-11
-    beta_w_vis_premotor = 5e-11
+    alpha_w_vis_premotor = 3e-11
+    beta_w_vis_premotor = 3e-11
 
     # stage 2 cortical
-    alpha_w_premotor_motor = 1e-18
-    beta_w_premotor_motor = 1e-18
+    alpha_w_premotor_motor = 0.5e-18
+    beta_w_premotor_motor = 0.5e-18 
 
     vis_dim = 100
     vis_amp = 7
@@ -738,7 +738,7 @@ def plot_simulation(fig_label):
     w_vis_pm_B_avg = np.mean(w_vis_pm_B_rec[:, :, -1, :], axis=(0, 1))
     axx.plot(tt, w_vis_pm_A_avg, marker='o', label='w_vis_pm_A_avg')
     axx.plot(tt, w_vis_pm_B_avg, marker='o', label='w_vis_pm_B_avg')
-    axx.set_ylim(-0.1, 1.5)
+    # axx.set_ylim(-0.1, 1.5)
     axx.legend(loc='upper center', ncol=2)
     axx.set_xticks([])
     ax.set_title('Stage 1 Cortical')
@@ -750,7 +750,7 @@ def plot_simulation(fig_label):
     axx.plot(tt, w_rec[3, 6, -1, :], marker='o', label='(PM B to M1 A)')
     axx.plot(tt, w_rec[3, 7, -1, :], marker='o', label='(PM B to M1 B)')
     axx.set_xticks([])
-    axx.set_ylim(-0.1, 1.5)
+    # axx.set_ylim(-0.1, 1.5)
     axx.legend(loc='upper center', ncol=2)
     ax.set_title('Stage 2 Cortical')
 
@@ -821,25 +821,19 @@ def plot_simulation(fig_label):
     plt.close()
 
 n_simulations = 1
-n_trials = 4 
+n_trials = 2000 
 
 lesion_mean = 0.0
 lesion_sd = 0.0
 
 trial_segments = [
-    np.arange((n_trials - 1), n_trials),
-    # np.arange(100, n_trials),
-    # np.arange(250, n_trials),
     # np.arange(500, n_trials),
-    # np.arange(750, n_trials),
-    # np.arange(1000, n_trials),
-    # np.arange(1250, n_trials),
-    # np.arange(1500, n_trials),
+    np.arange(750, n_trials),
 ]
 
 lesion_cell_sets = [
     np.array([0, 1]),  # DMS
-   #  np.array([4, 5])   # DLS
+    np.array([4, 5])   # DLS
 ]
 
 for i, lesioned_trials in enumerate(trial_segments):
