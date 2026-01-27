@@ -14,7 +14,7 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
     # ds.loc[ds.cat == 2, 'x'] = 90
     # ds.loc[ds.cat == 2, 'y'] = 90
 
-    # np.random.seed(0)
+    np.random.seed(0)
 
     tau = 1
     T = 3000
@@ -233,47 +233,17 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
                 u[mask, i] += d[mask]
                 spike[mask, i] = 1
 
+                # response
+                if (g[6, i] - g[7, i]) > resp_thresh:
+                    resp[sim, trl] = 1
+                    rt[sim, trl] = i
+                    break
+                elif (g[7, i] - g[6, i]) > resp_thresh:
+                    resp[sim, trl] = 2
+                    rt[sim, trl] = i
+                    break
 
-#                # response
-#                if (g[6, i] - g[7, i]) > resp_thresh:
-#                    resp[sim, trl] = 0
-#                    rt[sim, trl] = i
-#                    break
-#                elif (g[7, i] - g[6, i]) > resp_thresh:
-#                    resp[sim, trl] = 1
-#                    rt[sim, trl] = i
-#                    break
-
-#            # TODO: fiddly lat inhib implementation
-#            if g[0, :].sum() > g[1, :].sum():
-#                g[1, :].fill(0)
-#                v[1, :].fill(izp[1, 1])
-#            elif g[1, :].sum() > g[0, :].sum():
-#                g[0, :].fill(0)
-#                v[0, :].fill(izp[1, 1])
-#
-#            if g[2, :].sum() > g[3, :].sum():
-#                g[3, :].fill(0)
-#                # v[3, :].fill(izp[3, 1])
-#            elif g[3, :].sum() > g[2, :].sum():
-#                g[2, :].fill(0)
-#                v[2, :].fill(izp[2, 1])
-#
-#            if g[4, :].sum() > g[5, :].sum():
-#                g[5, :].fill(0)
-#                v[5, :].fill(izp[5, 1])
-#            elif g[5, :].sum() > g[4, :].sum():
-#                g[4, :].fill(0)
-#                v[4, :].fill(izp[4, 1])
-#
-#            if g[6, :].sum() > g[7, :].sum():
-#                g[7, :].fill(0)
-#                v[7, :].fill(izp[7, 1])
-#            elif g[7, :].sum() > g[6, :].sum():
-#                g[6, :].fill(0)
-#                v[6, :].fill(izp[6, 1])
-
-# pick a response if it hasn't happened already
+            # pick a response if it hasn't happened already
             if rt[sim, trl] == 0:
                 rt[sim, trl] = i
                 if g[6, :].sum() > g[7, :].sum():
@@ -853,7 +823,7 @@ def plot_simulation(fig_label):
     plt.close()
 
 n_simulations = 1
-n_trials = 1500
+n_trials = 10
 
 lesion_mean = 0.0
 lesion_sd = 0.0
@@ -872,5 +842,6 @@ lesion_cell_sets = [
 for i, lesioned_trials in enumerate(trial_segments):
     for j, lesion_cell_inds in enumerate(lesion_cell_sets):
         fig_label = 'lesion_trials_' + str(lesioned_trials[0]) + '-' + str(lesioned_trials[-1]) + '_cells_' + ['DMS', 'DLS'][j]
+        print
         simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd, fig_label)
         plot_simulation(fig_label)
