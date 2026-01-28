@@ -508,7 +508,7 @@ def plot_simulation_2(fig_label):
     plt.tight_layout()
     plt.show()
 
-n_simulations = 1
+n_simulashowtions = 1
 n_trials = 2000
 
 lesion_mean = 0.0
