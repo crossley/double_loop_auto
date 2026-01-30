@@ -5,11 +5,27 @@ import seaborn as sns
 
 
 def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
-             fig_label):
+             fig_label, rotation, n_trials, n_simulations):
 
-    ds = make_stim_cats(n_trials // 2)
+    np.random.seed(1)
 
-    np.random.seed(0)
+    n_test_trials = 300
+    ds, ds_90, ds_180 = make_stim_cats(n_trials // 2)
+    ds_0 = ds.sample(n=n_test_trials, random_state=0).reset_index(drop=True)
+    ds_90 = ds_90.sample(n=n_test_trials, random_state=0).reset_index(drop=True)
+    ds_180 = ds_90.sample(n=n_test_trials, random_state=0).reset_index(drop=True)
+
+    if rotation == 0:
+        # concat ds and ds_0
+        ds = pd.concat([ds, ds_0], ignore_index=True)
+    elif rotation == 90:
+        # concat ds and ds_90
+        ds = pd.concat([ds, ds_90], ignore_index=True)
+    elif rotation == 180:
+        # concat ds and ds_180
+        ds = pd.concat([ds, ds_180], ignore_index=True)
+
+    n_trials = ds.shape[0]
 
     tau = 1
     T = 3000
@@ -31,12 +47,12 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
     gamma_w_premotor_dls = 0.0
 
     # stage 1 cortical
-    alpha_w_vis_premotor = 5e-11
-    beta_w_vis_premotor = 5e-11
+    alpha_w_vis_premotor = 5e-11 * 0
+    beta_w_vis_premotor = 5e-11 * 0
 
     # stage 2 cortical
-    alpha_w_premotor_motor = 1e-18
-    beta_w_premotor_motor = 1e-18
+    alpha_w_premotor_motor = 1e-18 * 0
+    beta_w_premotor_motor = 1e-18 * 0
 
     vis_dim = 100
     vis_amp = 7
@@ -84,7 +100,7 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
 
     psp_amp = 1e5
     psp_decay = 200
-    resp_thresh = 1e3
+    resp_thresh = 1e4
 
     # input into cells from the periphery
     I_ext = np.zeros((n_cells, n_steps))
@@ -391,156 +407,6 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
             w_vis_pm_A_rec[:, :, sim, trl] = w_vis_pm_A
             w_vis_pm_B_rec[:, :, sim, trl] = w_vis_pm_B
 
-            #             if trl % (n_trials - 2) == 0 and trl > 0:
-            #             # if True:
-            #
-            #                 fig = plt.figure(figsize=(15, 7.5))
-            #                 gs = plt.GridSpec(9, 8)
-            #                 gs.update(hspace=2.5, wspace=2.5)
-            #                 ax = [
-            #                     [
-            #                         fig.add_subplot(gs[0:2, 0:2]),
-            #                         fig.add_subplot(gs[0:2, 2:4]),
-            #                         fig.add_subplot(gs[2:4, 0:2]),
-            #                         fig.add_subplot(gs[2:4, 2:4])
-            #                     ],
-            #                     [
-            #                         fig.add_subplot(gs[0:2, 4:8]),
-            #                         fig.add_subplot(gs[2:4, 4:8])
-            #                     ],
-            #                     [fig.add_subplot(gs[4, :4]),
-            #                      fig.add_subplot(gs[4, 4:])],
-            #                     [fig.add_subplot(gs[5, :4]),
-            #                      fig.add_subplot(gs[5, 4:])],
-            #                     [fig.add_subplot(gs[6, :4]),
-            #                      fig.add_subplot(gs[6, 4:])],
-            #                     [fig.add_subplot(gs[7, :4]),
-            #                      fig.add_subplot(gs[7, 4:])],
-            #                     [fig.add_subplot(gs[8, :4]),
-            #                      fig.add_subplot(gs[8, 4:])],
-            #                 ]
-            #
-            #                 axx = ax[0][0]
-            #                 im0 = axx.imshow(w_vis_dms_A, cmap="viridis")
-            #                 axx.set_title("w_vis_dms_A (current)")
-            #                 axx.invert_yaxis()
-            #                 plt.colorbar(im0, ax=axx, fraction=0.046, pad=0.04)
-            #
-            #                 axx = ax[0][1]
-            #                 im1 = axx.imshow(w_vis_dms_B, cmap="viridis")
-            #                 axx.set_title("w_vis_dms_B (current)")
-            #                 axx.invert_yaxis()
-            #                 plt.colorbar(im1, ax=axx, fraction=0.046, pad=0.04)
-            #
-            #                 # axx = ax[0][2]
-            #                 # im2 = axx.imshow(vis, cmap="viridis")
-            #                 # axx.set_title("vis (current)")
-            #                 # axx.invert_yaxis()
-            #                 # plt.colorbar(im2, ax=axx, fraction=0.046, pad=0.04)
-            #
-            #                 # axx = ax[0][3]
-            #                 # im3 = axx.imshow(vis, cmap="viridis")
-            #                 # axx.set_title("vis (current)")
-            #                 # axx.invert_yaxis()
-            #                 # plt.colorbar(im3, ax=axx, fraction=0.046, pad=0.04)
-            #
-            #                 axx = ax[0][2]
-            #                 im2 = axx.imshow(w_vis_pm_A, cmap="viridis", vmin=0, vmax=1)
-            #                 axx.set_title("w_vis_pm_A (current)")
-            #                 axx.invert_yaxis()
-            #                 plt.colorbar(im2, ax=axx, fraction=0.046, pad=0.04)
-            #
-            #                 axx = ax[0][3]
-            #                 im3 = axx.imshow(w_vis_pm_B, cmap="viridis", vmin=0, vmax=1)
-            #                 axx.set_title("w_vis_pm_B (current)")
-            #                 axx.invert_yaxis()
-            #                 plt.colorbar(im3, ax=axx, fraction=0.046, pad=0.04)
-            #
-            #                 # plot premotor to dls weights
-            #                 tt = np.arange(0, trl + 1)
-            #                 axx = ax[1][0]
-            #                 axx.scatter(tt,
-            #                             w_rec[2, 4, sim, :trl + 1],
-            #                             label='(PM A to DLS A)')
-            #                 axx.scatter(tt,
-            #                             w_rec[2, 5, sim, :trl + 1],
-            #                             label='(PM A to DLS B)')
-            #                 axx.scatter(tt,
-            #                             w_rec[3, 4, sim, :trl + 1],
-            #                             label='(PM B to DLS A)')
-            #                 axx.scatter(tt,
-            #                             w_rec[3, 5, sim, :trl + 1],
-            #                             label='(PM B to DLS B)')
-            #                 axx.plot(tt, w_rec[2, 4, sim, :trl + 1])
-            #                 axx.plot(tt, w_rec[2, 5, sim, :trl + 1])
-            #                 axx.plot(tt, w_rec[3, 4, sim, :trl + 1])
-            #                 axx.plot(tt, w_rec[3, 5, sim, :trl + 1])
-            #                 # axx.set_ylim(-0.1, 1.5)
-            #                 axx.legend(loc='upper right', ncol=4, bbox_to_anchor=(1.2, 1.4))
-            #
-            #                 # scatter premotor to motor weights
-            #                 axx = ax[1][1]
-            #                 axx.scatter(tt,
-            #                             w_rec[2, 6, sim, :trl + 1],
-            #                             label='(PM A to M1 A)')
-            #                 axx.scatter(tt,
-            #                             w_rec[2, 7, sim, :trl + 1],
-            #                             label='(PM A to M1 B)')
-            #                 axx.scatter(tt,
-            #                             w_rec[3, 6, sim, :trl + 1],
-            #                             label='(PM B to M1 A)')
-            #                 axx.scatter(tt,
-            #                             w_rec[3, 7, sim, :trl + 1],
-            #                             label='(PM B to M1 B)')
-            #                 axx.plot(tt, w_rec[2, 6, sim, :trl + 1])
-            #                 axx.plot(tt, w_rec[2, 7, sim, :trl + 1])
-            #                 axx.plot(tt, w_rec[3, 6, sim, :trl + 1])
-            #                 axx.plot(tt, w_rec[3, 7, sim, :trl + 1])
-            #                 axx.set_ylim(-0.1, 1.5)
-            #                 # axx.legend(loc='upper right', ncol=4, bbox_to_anchor=(1.2, 1.4))
-            #
-            #                 net_labs = ['DMS', 'Premotor', 'DLS', 'Motor']
-            #                 for ii, jj in enumerate(range(0, n_cells, 2)):
-            #                     ax_v = ax[ii + 2][0]
-            #                     ax_g = ax_v.twinx()
-            #                     ax_v.plot(t,
-            #                               v[jj, :],
-            #                               color='C0',
-            #                               label=net_labs[ii] + ' A',
-            #                               alpha=0.5)
-            #                     ax_g.plot(t,
-            #                               g[jj, :],
-            #                               color='C1',
-            #                               label=net_labs[ii] + ' A')
-            #                     ax_v.legend(loc='upper right')
-            #                     ax_g.legend(loc='upper right')
-            #
-            #                     ax_v = ax[ii + 2][1]
-            #                     ax_g = ax_v.twinx()
-            #                     ax_v.plot(t,
-            #                               v[jj + 1, :],
-            #                               color='C0',
-            #                               label=net_labs[ii] + ' B',
-            #                               alpha=0.5)
-            #                     ax_g.plot(t,
-            #                               g[jj + 1, :],
-            #                               color='C1',
-            #                               label=net_labs[ii] + ' B')
-            #                     ax_v.legend(loc='upper right')
-            #                     ax_g.legend(loc='upper right')
-            #
-            #                 axx = ax[6][0]
-            #                 axx.plot(tt, r[sim, :trl + 1], label='Reward', color='C0')
-            #                 axx.plot(tt, p[sim, :trl + 1], label='Predicted Reward', color='C1')
-            #                 axx.plot(tt, rpe[sim, :trl + 1], label='RPE', color='C2')
-            #
-            #                 axx = ax[6][1]
-            #                 axx.plot(tt, cat[sim, :trl + 1], label='Category', color='C0')
-            #                 axx.plot(tt, resp[sim, :trl + 1], label='Response', color='C1')
-            #
-            #                 fig.suptitle(f"Sim {sim} | Trial {trl}", fontsize=14)
-            #                 plt.show()
-
     np.save('../output/model_spiking_' + fig_label + '_v.npy', v_rec)
     np.save('../output/model_spiking_' + fig_label + '_g.npy', g_rec)
     np.save('../output/model_spiking_' + fig_label + '_w.npy', w_rec)
@@ -574,6 +440,10 @@ def make_stim_cats(n_stimuli_per_category=2000):
     rotation_matrix = np.array([[np.cos(theta), -np.sin(theta)],
                                 [np.sin(theta), np.cos(theta)]])
 
+    # Means for the two categories
+    category_A_mean = [40, 60]
+    category_B_mean = [60, 40]
+
     # Standard deviations along major and minor axes
     std_major = sigma * np.sqrt(1 + corr)
     std_minor = sigma * np.sqrt(1 - corr)
@@ -605,9 +475,6 @@ def make_stim_cats(n_stimuli_per_category=2000):
         return points.T
 
     # Generate stimuli
-    category_A_mean = [40, 60]
-    category_B_mean = [60, 40]
-
     stimuli_A = sample_within_ellipse(category_A_mean, n_stimuli_per_category)
     stimuli_B = sample_within_ellipse(category_B_mean, n_stimuli_per_category)
 
@@ -631,7 +498,40 @@ def make_stim_cats(n_stimuli_per_category=2000):
     # shuffle rows of ds
     ds = ds.sample(frac=1).reset_index(drop=True)
 
-    return ds
+    # create 90 degree rotation stim
+    ds_90 = ds.copy()
+    ds_90["x"] = ds_90["x"] - 50
+    ds_90["y"] = ds_90["y"] - 50
+    theta = 90 * np.pi / 180
+    rotation_matrix = np.array([[np.cos(theta), -np.sin(theta)],
+                                [np.sin(theta), np.cos(theta)]])
+    rotated_points = np.dot(rotation_matrix, ds_90[["x", "y"]].T).T
+    ds_90["x"] = rotated_points[:, 0]
+    ds_90["y"] = rotated_points[:, 1]
+    ds_90["x"] = ds_90["x"] + 50
+    ds_90["y"] = ds_90["y"] + 50
+
+    # create 180 degree rotation stim
+    ds_180 = ds.copy()
+    ds_180["x"] = ds_180["x"] - 50
+    ds_180["y"] = ds_180["y"] - 50
+    theta = 180 * np.pi / 180
+    rotation_matrix = np.array([[np.cos(theta), -np.sin(theta)],
+                                [np.sin(theta), np.cos(theta)]])
+    rotated_points = np.dot(rotation_matrix, ds_180[["x", "y"]].T).T
+    ds_180["x"] = rotated_points[:, 0]
+    ds_180["y"] = rotated_points[:, 1]
+    ds_180["x"] = ds_180["x"] + 50
+    ds_180["y"] = ds_180["y"] + 50
+
+    # fig, ax = plt.subplots(1, 3, squeeze=False,  figsize=(12, 6))
+    # sns.scatterplot(data=ds, x="x", y="y", hue="cat", alpha=0.5, ax=ax[0, 0])
+    # sns.scatterplot(data=ds_90, x="x", y="y", hue="cat", alpha=0.5, ax=ax[0, 1])
+    # sns.scatterplot(data=ds_180, x="x", y="y", hue="cat", alpha=0.5, ax=ax[0, 2])
+    # plt.tight_layout()
+    # plt.show()
+
+    return ds, ds_90, ds_180
 
 
 def load_simulation(fig_label):
@@ -673,6 +573,8 @@ def plot_simulation(fig_label):
     w_vis_dms_B_rec = res[10]
     w_vis_pm_A_rec = res[11]
     w_vis_pm_B_rec = res[12]
+
+    n_trials = v_rec.shape[2]
 
     # Compute averages over simulations
     mean_v = v_rec.mean(axis=1)
@@ -840,26 +742,31 @@ def plot_simulation(fig_label):
 
 
 n_simulations = 1
-n_trials = 2000
+n_trials = 500
 
 lesion_mean = 0.0
 lesion_sd = 0.0
+lesioned_trials = []
+lesion_cell_inds = []
 
-trial_segments = [
-    np.arange(500, n_trials),
-    np.arange(750, n_trials),
-    np.arange(1000, n_trials),
-]
+fig_label = '180 rotation'
+simulate(lesioned_trials,
+         lesion_cell_inds,
+         lesion_mean,
+         lesion_sd,
+         fig_label,
+         rotation=180, # NOTE: currently only works with 0, 90, or 180
+         n_trials=n_trials,
+         n_simulations=n_simulations)
+plot_simulation(fig_label)
 
-lesion_cell_sets = [
-    np.array([0, 1]),  # DMS
-    np.array([4, 5])  # DLS
-]
-
-for i, lesioned_trials in enumerate(trial_segments):
-    for j, lesion_cell_inds in enumerate(lesion_cell_sets):
-        fig_label = 'lesion_trials_' + str(lesioned_trials[0]) + '-' + str(
-            lesioned_trials[-1]) + '_cells_' + ['DMS', 'DLS'][j]
-        simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
-                 fig_label)
-        plot_simulation(fig_label)
+fig_label = '90 rotation'
+simulate(lesioned_trials,
+         lesion_cell_inds,
+         lesion_mean,
+         lesion_sd,
+         fig_label,
+         rotation=90, # NOTE: currently only works with 0, 90, or 180
+         n_trials=n_trials,
+         n_simulations=n_simulations)
+plot_simulation(fig_label)
