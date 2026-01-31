@@ -590,7 +590,8 @@ def plot_simulation_2():
     ds_90 = res_90[13]
     ds_180 = res_180[13]
 
-    n_probe_trials = 100
+    ds_90 = ds_90.drop(columns=['Unnamed: 0'])
+    ds_180 = ds_180.drop(columns=['Unnamed: 0'])
 
     is_probe = ds_90['phase'] == 'probe'
     probe_blocks = (is_probe & ~is_probe.shift(fill_value=False)).cumsum()
@@ -625,23 +626,68 @@ def plot_simulation_2():
     ds_90 = pd.DataFrame({'acc': acc_90, 'day': ds_90['day'], 'prepost': ds_90['prepost']})
     ds_180 = pd.DataFrame({'acc': acc_180, 'day': ds_180['day'], 'prepost': ds_180['prepost']})
 
-    ds_180 = ds_180[ds_180['prepost'] != 'NA'][['acc', 'day', 'prepost']].reset_index()
-    ds_90 = ds_90[ds_90['prepost'] != 'NA'][['acc', 'day', 'prepost']].reset_index()
+    ds_90 = ds_90[ds_90['prepost'] != 'NA'][['acc', 'day', 'prepost']].reset_index(drop=True)
+    ds_180 = ds_180[ds_180['prepost'] != 'NA'][['acc', 'day', 'prepost']].reset_index(drop=True)
 
     ds_90['rotation'] = 90
     ds_180['rotation'] = 180
 
     ds = pd.concat([ds_90, ds_180])
 
-    sns.catplot(data=ds,
-                x='day',
-                y='acc',
-                hue='prepost',
-                col='rotation',
-                kind='bar',
-                height=5,
-                aspect=1)
-    plt.ylim(0, 1)
+    ds['trial'] = ds.groupby(['rotation', 'day', 'prepost']).cumcount() + 1
+    block_size = 50
+    ds['block'] = ((ds['trial'] - 1) // block_size) + 1
+
+    fig, ax = plt.subplots(3, 2, squeeze=False, figsize=(8, 12))
+    sns.lineplot(data=ds[(ds['rotation'] == 90) & (ds['day'] == 1)],
+                 x='block',
+                 y='acc',
+                 hue='prepost',
+                 err_style='bars',
+                 legend=None,
+                 ax=ax[0, 0])
+    sns.lineplot(data=ds[(ds['rotation'] == 180) & (ds['day'] == 1)],
+                 x='block',
+                 y='acc',
+                 hue='prepost',
+                 err_style='bars',
+                 legend=None,
+                 ax=ax[0, 1])
+    sns.lineplot(data=ds[(ds['rotation'] == 90) & (ds['day'] == 2)],
+                 x='block',
+                 y='acc',
+                 hue='prepost',
+                 err_style='bars',
+                 legend=None,
+                 ax=ax[1, 0])
+    sns.lineplot(data=ds[(ds['rotation'] == 180) & (ds['day'] == 2)],
+                 x='block',
+                 y='acc',
+                 hue='prepost',
+                 err_style='bars',
+                 legend=None,
+                 ax=ax[1, 1])
+    sns.lineplot(data=ds[(ds['rotation'] == 90) & (ds['day'] == 3)],
+                 x='block',
+                 y='acc',
+                 hue='prepost',
+                 err_style='bars',
+                 legend=None,
+                 ax=ax[2, 0])
+    sns.lineplot(data=ds[(ds['rotation'] == 180) & (ds['day'] == 3)],
+                 x='block',
+                 y='acc',
+                 hue='prepost',
+                 err_style='bars',
+                 legend=None,
+                 ax=ax[2, 1])
+    ax[0, 0].set_title('90 Degree Rotation Day 1')
+    ax[0, 1].set_title('180 Degree Rotation Day 1')
+    ax[1, 0].set_title('90 Degree Rotation Day 2')
+    ax[1, 1].set_title('180 Degree Rotation Day 2')
+    ax[2, 0].set_title('90 Degree Rotation Day 3')
+    ax[2, 1].set_title('180 Degree Rotation Day 3')
+    plt.tight_layout()
     plt.savefig('../figures/barplot_90_vs_108.png')
 
 
@@ -836,8 +882,8 @@ lesioned_trials = []
 lesion_cell_inds = []
 
 n_simulations = 1
-n_trials = 2000
-probe_trial_onsets = [500, 1000, 1500]
+n_trials = 600
+probe_trial_onsets = [600]
 n_probe_trials = 200
 
 for rotation in [90, 180]:
@@ -847,4 +893,4 @@ for rotation in [90, 180]:
              n_simulations)
     plot_simulation(fig_label)
 
-plot_simulation_2()
+# plot_simulation_2()
