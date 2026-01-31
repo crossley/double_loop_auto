@@ -5,25 +5,38 @@ import seaborn as sns
 
 
 def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
-             fig_label, rotation, n_trials, n_simulations):
+             fig_label, rotation, probe_trial_onsets, n_probe_trials, n_trials,
+             n_simulations):
 
     np.random.seed(1)
 
-    n_test_trials = 300
     ds, ds_90, ds_180 = make_stim_cats(n_trials // 2)
-    ds_0 = ds.sample(n=n_test_trials, random_state=0).reset_index(drop=True)
-    ds_90 = ds_90.sample(n=n_test_trials, random_state=0).reset_index(drop=True)
-    ds_180 = ds_90.sample(n=n_test_trials, random_state=0).reset_index(drop=True)
+    ds_0 = ds.sample(n=n_probe_trials, random_state=0).reset_index(drop=True)
+    ds_90 = ds_90.sample(n=n_probe_trials,
+                         random_state=0).reset_index(drop=True)
+    ds_180 = ds_90.sample(n=n_probe_trials,
+                          random_state=0).reset_index(drop=True)
 
     if rotation == 0:
-        # concat ds and ds_0
-        ds = pd.concat([ds, ds_0], ignore_index=True)
+        ds_probe = ds_0
     elif rotation == 90:
-        # concat ds and ds_90
-        ds = pd.concat([ds, ds_90], ignore_index=True)
+        ds_probe = ds_90
     elif rotation == 180:
-        # concat ds and ds_180
-        ds = pd.concat([ds, ds_180], ignore_index=True)
+        ds_probe = ds_180
+
+    ds['phase'] = 'train'
+    ds_probe['phase'] = 'probe'
+
+    # insert all rows of ds_probe at every probe_trial_onsets
+    for onset in sorted(probe_trial_onsets, reverse=True):
+        ds_top = ds.iloc[:onset, :].reset_index(drop=True)
+        ds_bottom = ds.iloc[onset:, :].reset_index(drop=True)
+        ds = pd.concat([ds_top, ds_probe, ds_bottom], ignore_index=True)
+
+    # sns scattplot using ds with probe and train phases in different axes
+    # fig, ax = plt.subplots(1, 1, squeeze=False, figsize=(12, 6))
+    # sns.scatterplot(data=ds, x="x", y="y", hue="cat", style="phase", alpha=0.5, ax=ax[0, 0], legend=None)
+    # plt.show()
 
     n_trials = ds.shape[0]
 
@@ -425,6 +438,8 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
     np.save('../output/model_spiking_' + fig_label + 'w_vis_pm_B_rec.npy',
             w_vis_pm_B_rec)
 
+    ds.to_csv('../output/model_spiking_' + fig_label + '_ds.csv')
+
     return v_rec, g_rec, w_rec, rpe, p, resp, cat, rt
 
 
@@ -552,8 +567,82 @@ def load_simulation(fig_label):
                              'w_vis_pm_A_rec.npy')
     w_vis_pm_B_rec = np.load('../output/model_spiking_' + fig_label +
                              'w_vis_pm_B_rec.npy')
+    ds = pd.read_csv('../output/model_spiking_' + fig_label + '_ds.csv')
 
-    return v_rec, g_rec, w_rec, rpe, p, r, resp, cat, rt, w_vis_dms_A_rec, w_vis_dms_B_rec, w_vis_pm_A_rec, w_vis_pm_B_rec
+    return v_rec, g_rec, w_rec, rpe, p, r, resp, cat, rt, w_vis_dms_A_rec, w_vis_dms_B_rec, w_vis_pm_A_rec, w_vis_pm_B_rec, ds
+
+
+def plot_simulation_2():
+
+    res_90 = load_simulation('90')
+    res_180 = load_simulation('180')
+
+    resp_90 = res_90[6]
+    cat_90 = res_90[7]
+    acc_90 = resp_90 == cat_90
+    acc_90 = np.squeeze(acc_90)
+
+    resp_180 = res_180[6]
+    cat_180 = res_180[7]
+    acc_180 = resp_180 == cat_180
+    acc_180 = np.squeeze(acc_180)
+
+    ds_90 = res_90[13]
+    ds_180 = res_180[13]
+
+    n_probe_trials = 100
+
+    is_probe = ds_90['phase'] == 'probe'
+    probe_blocks = (is_probe & ~is_probe.shift(fill_value=False)).cumsum()
+    ds_180['day_post'] = np.where(is_probe, probe_blocks, 0)
+    ds_180['day_pre'] = ds_180['day_post'].shift(-n_probe_trials, fill_value=0)
+    ds_180['day'] = 0
+    ds_180.loc[ds_180['day_pre'] == 1, 'day'] = 1
+    ds_180.loc[ds_180['day_post'] == 1, 'day'] = 1
+    ds_180.loc[ds_180['day_pre'] == 2, 'day'] = 2
+    ds_180.loc[ds_180['day_post'] == 2, 'day'] = 2
+    ds_180.loc[ds_180['day_pre'] == 3, 'day'] = 3
+    ds_180.loc[ds_180['day_post'] == 3, 'day'] = 3
+    ds_180['prepost'] = 'NA'
+    ds_180.loc[ds_180['day_pre'] != 0, 'prepost'] = 'pre'
+    ds_180.loc[ds_180['day_post'] != 0, 'prepost'] = 'post'
+
+    is_probe = ds_90['phase'] == 'probe'
+    probe_blocks = (is_probe & ~is_probe.shift(fill_value=False)).cumsum()
+    ds_90['day_post'] = np.where(is_probe, probe_blocks, 0)
+    ds_90['day_pre'] = ds_90['day_post'].shift(-n_probe_trials, fill_value=0)
+    ds_90['day'] = 0
+    ds_90.loc[ds_90['day_pre'] == 1, 'day'] = 1
+    ds_90.loc[ds_90['day_post'] == 1, 'day'] = 1
+    ds_90.loc[ds_90['day_pre'] == 2, 'day'] = 2
+    ds_90.loc[ds_90['day_post'] == 2, 'day'] = 2
+    ds_90.loc[ds_90['day_pre'] == 3, 'day'] = 3
+    ds_90.loc[ds_90['day_post'] == 3, 'day'] = 3
+    ds_90['prepost'] = 'NA'
+    ds_90.loc[ds_90['day_pre'] != 0, 'prepost'] = 'pre'
+    ds_90.loc[ds_90['day_post'] != 0, 'prepost'] = 'post'
+
+    ds_90 = pd.DataFrame({'acc': acc_90, 'day': ds_90['day'], 'prepost': ds_90['prepost']})
+    ds_180 = pd.DataFrame({'acc': acc_180, 'day': ds_180['day'], 'prepost': ds_180['prepost']})
+
+    ds_180 = ds_180[ds_180['prepost'] != 'NA'][['acc', 'day', 'prepost']].reset_index()
+    ds_90 = ds_90[ds_90['prepost'] != 'NA'][['acc', 'day', 'prepost']].reset_index()
+
+    ds_90['rotation'] = 90
+    ds_180['rotation'] = 180
+
+    ds = pd.concat([ds_90, ds_180])
+
+    sns.catplot(data=ds,
+                x='day',
+                y='acc',
+                hue='prepost',
+                col='rotation',
+                kind='bar',
+                height=5,
+                aspect=1)
+    plt.ylim(0, 1)
+    plt.savefig('../figures/barplot_90_vs_108.png')
 
 
 def plot_simulation(fig_label):
@@ -741,32 +830,21 @@ def plot_simulation(fig_label):
     plt.close()
 
 
-n_simulations = 1
-n_trials = 500
-
 lesion_mean = 0.0
 lesion_sd = 0.0
 lesioned_trials = []
 lesion_cell_inds = []
 
-fig_label = '180 rotation'
-simulate(lesioned_trials,
-         lesion_cell_inds,
-         lesion_mean,
-         lesion_sd,
-         fig_label,
-         rotation=180, # NOTE: currently only works with 0, 90, or 180
-         n_trials=n_trials,
-         n_simulations=n_simulations)
-plot_simulation(fig_label)
+n_simulations = 1
+n_trials = 2000
+probe_trial_onsets = [500, 1000, 1500]
+n_probe_trials = 200
 
-fig_label = '90 rotation'
-simulate(lesioned_trials,
-         lesion_cell_inds,
-         lesion_mean,
-         lesion_sd,
-         fig_label,
-         rotation=90, # NOTE: currently only works with 0, 90, or 180
-         n_trials=n_trials,
-         n_simulations=n_simulations)
-plot_simulation(fig_label)
+for rotation in [90, 180]:
+    fig_label = str(rotation)
+    simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
+             fig_label, rotation, probe_trial_onsets, n_probe_trials, n_trials,
+             n_simulations)
+    plot_simulation(fig_label)
+
+plot_simulation_2()
