@@ -12,10 +12,8 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
 
     ds, ds_90, ds_180 = make_stim_cats(n_trials // 2)
     ds_0 = ds.sample(n=n_probe_trials, random_state=0).reset_index(drop=True)
-    ds_90 = ds_90.sample(n=n_probe_trials,
-                         random_state=0).reset_index(drop=True)
-    ds_180 = ds_90.sample(n=n_probe_trials,
-                          random_state=0).reset_index(drop=True)
+    ds_90 = ds_90.sample(n=n_probe_trials, random_state=0).reset_index(drop=True)
+    ds_180 = ds_90.sample(n=n_probe_trials, random_state=0).reset_index(drop=True)
 
     if rotation == 0:
         ds_probe = ds_0
@@ -56,7 +54,7 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
 
     # stage 2 sub-cortical
     alpha_w_premotor_dls = 2e-15
-    beta_w_premotor_dls = 2e-15
+    beta_w_premotor_dls = 1e-15
     gamma_w_premotor_dls = 0.0
 
     # stage 1 cortical
@@ -113,7 +111,7 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
 
     psp_amp = 1e5
     psp_decay = 200
-    resp_thresh = 1e4
+    resp_thresh = 5e6
 
     # input into cells from the periphery
     I_ext = np.zeros((n_cells, n_steps))
@@ -184,8 +182,8 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
         w[3, 2] = -0.01 * 0
 
         # lateral inhibition between DLS units
-        w[4, 5] = -0.15
-        w[5, 4] = -0.15
+        w[4, 5] = -0.5
+        w[5, 4] = -0.5
 
         for trl in range(n_trials - 1):
 
