@@ -13,7 +13,13 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
     ds, ds_90, ds_180 = make_stim_cats(n_trials // 2)
     ds_0 = ds.sample(n=n_probe_trials, random_state=0).reset_index(drop=True)
     ds_90 = ds_90.sample(n=n_probe_trials, random_state=0).reset_index(drop=True)
-    ds_180 = ds_90.sample(n=n_probe_trials, random_state=0).reset_index(drop=True)
+    ds_180 = ds_180.sample(n=n_probe_trials, random_state=0).reset_index(drop=True)
+
+    # fig, ax = plt.subplots(1, 3, squeeze=False, figsize=(12, 6))
+    # sns.scatterplot(data=ds_0, x="x", y="y", hue="cat", alpha=0.5, ax=ax[0, 0], legend=None)
+    # sns.scatterplot(data=ds_90, x="x", y="y", hue="cat", alpha=0.5, ax=ax[0, 1], legend=None)
+    # sns.scatterplot(data=ds_180, x="x", y="y", hue="cat", alpha=0.5, ax=ax[0, 2], legend=None)
+    # plt.show()
 
     if rotation == 0:
         ds_probe = ds_0
@@ -31,8 +37,8 @@ def simulate(lesioned_trials, lesion_cell_inds, lesion_mean, lesion_sd,
         ds_bottom = ds.iloc[onset:, :].reset_index(drop=True)
         ds = pd.concat([ds_top, ds_probe, ds_bottom], ignore_index=True)
 
-    # sns scattplot using ds with probe and train phases in different axes
-    # fig, ax = plt.subplots(1, 1, squeeze=False, figsize=(12, 6))
+    # # sns scattplot using ds with probe and train phases in different axes
+    # fig, ax = plt.subplots(1, 3, squeeze=False, figsize=(12, 6))
     # sns.scatterplot(data=ds, x="x", y="y", hue="cat", style="phase", alpha=0.5, ax=ax[0, 0], legend=None)
     # plt.show()
 
@@ -537,12 +543,12 @@ def make_stim_cats(n_stimuli_per_category=2000):
     ds_180["x"] = ds_180["x"] + 50
     ds_180["y"] = ds_180["y"] + 50
 
-    # fig, ax = plt.subplots(1, 3, squeeze=False,  figsize=(12, 6))
-    # sns.scatterplot(data=ds, x="x", y="y", hue="cat", alpha=0.5, ax=ax[0, 0])
-    # sns.scatterplot(data=ds_90, x="x", y="y", hue="cat", alpha=0.5, ax=ax[0, 1])
-    # sns.scatterplot(data=ds_180, x="x", y="y", hue="cat", alpha=0.5, ax=ax[0, 2])
-    # plt.tight_layout()
-    # plt.show()
+    fig, ax = plt.subplots(1, 3, squeeze=False,  figsize=(12, 6))
+    sns.scatterplot(data=ds, x="x", y="y", hue="cat", alpha=0.5, ax=ax[0, 0])
+    sns.scatterplot(data=ds_90, x="x", y="y", hue="cat", alpha=0.5, ax=ax[0, 1])
+    sns.scatterplot(data=ds_180, x="x", y="y", hue="cat", alpha=0.5, ax=ax[0, 2])
+    plt.tight_layout()
+    plt.show()
 
     return ds, ds_90, ds_180
 
