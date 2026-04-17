@@ -22,7 +22,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 OUTPUT_DIR = REPO_ROOT / "output"
 FIGURES_DIR = REPO_ROOT / "figures"
-OUTPUT_PREFIX = "model_spiking_cat_90vs180_gadi"
+OUTPUT_PREFIX = "model_spiking_cat_90vs180_vectorized_light"
 
 
 def build_prefix(fig_label: str, output_dir: Path) -> Path:
@@ -155,15 +155,11 @@ def simulate(lesioned_trials,
 
     w = np.zeros((n_cells, n_cells))
 
-    v_rec = np.zeros((n_cells, n_simulations, n_trials, n_steps))
-    u_rec = np.zeros((n_cells, n_simulations, n_trials, n_steps))
-    g_rec = np.zeros((n_cells, n_simulations, n_trials, n_steps))
-    spike_rec = np.zeros((n_cells, n_simulations, n_trials, n_steps))
-    w_rec = np.zeros((n_cells, n_cells, n_simulations, n_trials))
-    w_vis_dms_A_rec = np.zeros((vis_dim, vis_dim, n_simulations, n_trials))
-    w_vis_dms_B_rec = np.zeros((vis_dim, vis_dim, n_simulations, n_trials))
-    w_vis_pm_A_rec = np.zeros((vis_dim, vis_dim, n_simulations, n_trials))
-    w_vis_pm_B_rec = np.zeros((vis_dim, vis_dim, n_simulations, n_trials))
+    w_final = np.zeros((n_cells, n_cells, n_simulations))
+    w_vis_dms_A_final = np.zeros((vis_dim, vis_dim, n_simulations))
+    w_vis_dms_B_final = np.zeros((vis_dim, vis_dim, n_simulations))
+    w_vis_pm_A_final = np.zeros((vis_dim, vis_dim, n_simulations))
+    w_vis_pm_B_final = np.zeros((vis_dim, vis_dim, n_simulations))
 
     for sim in range(n_simulations):
         w_vis_dms_A = np.random.uniform(0.4, 0.6, (vis_dim, vis_dim))
@@ -288,36 +284,24 @@ def simulate(lesioned_trials,
 
             dms_A = g[0, :].sum()
             dms_B = g[1, :].sum()
+            rpe_val = rpe[sim, trl]
 
-            for ii in range(vis_dim):
-                for jj in range(vis_dim):
-                    pre_activity = vis[ii, jj]
+            dms_A_pos = np.clip(dms_A - nmda_thresh, 0, None)
+            dms_A_neg = np.clip(nmda_thresh - dms_A, 0, None)
+            dms_B_pos = np.clip(dms_B - nmda_thresh, 0, None)
+            dms_B_neg = np.clip(nmda_thresh - dms_B, 0, None)
+            rpe_pos = np.clip(rpe_val, 0, None)
+            rpe_neg = np.clip(rpe_val, None, 0)
 
-                    post_activity = dms_A
-                    dw_1 = alpha_w_vis_dms * pre_activity * np.clip(
-                        post_activity - nmda_thresh, 0, None) * np.clip(
-                            rpe[sim, trl], 0, None) * (1 - w_vis_dms_A[ii, jj])
-                    dw_2 = beta_w_vis_dms * pre_activity * np.clip(
-                        post_activity - nmda_thresh, 0, None) * np.clip(
-                            rpe[sim, trl], None, 0) * w_vis_dms_A[ii, jj]
-                    dw_3 = -gamma_w_vis_dms * pre_activity * np.clip(
-                        nmda_thresh - post_activity, 0, None) * w_vis_dms_A[ii,
-                                                                            jj]
-                    w_vis_dms_A[ii, jj] += dw_1 + dw_2 + dw_3
-                    w_vis_dms_A[ii, jj] = np.clip(w_vis_dms_A[ii, jj], 0, 1)
+            dw_1 = alpha_w_vis_dms * vis * dms_A_pos * rpe_pos * (1 - w_vis_dms_A)
+            dw_2 = beta_w_vis_dms * vis * dms_A_pos * rpe_neg * w_vis_dms_A
+            dw_3 = -gamma_w_vis_dms * vis * dms_A_neg * w_vis_dms_A
+            w_vis_dms_A = np.clip(w_vis_dms_A + dw_1 + dw_2 + dw_3, 0, 1)
 
-                    post_activity = dms_B
-                    dw_1 = alpha_w_vis_dms * pre_activity * np.clip(
-                        post_activity - nmda_thresh, 0, None) * np.clip(
-                            rpe[sim, trl], 0, None) * (1 - w_vis_dms_B[ii, jj])
-                    dw_2 = beta_w_vis_dms * pre_activity * np.clip(
-                        post_activity - nmda_thresh, 0, None) * np.clip(
-                            rpe[sim, trl], None, 0) * w_vis_dms_B[ii, jj]
-                    dw_3 = -gamma_w_vis_dms * pre_activity * np.clip(
-                        nmda_thresh - post_activity, 0, None) * w_vis_dms_B[ii,
-                                                                            jj]
-                    w_vis_dms_B[ii, jj] += dw_1 + dw_2 + dw_3
-                    w_vis_dms_B[ii, jj] = np.clip(w_vis_dms_B[ii, jj], 0, 1)
+            dw_1 = alpha_w_vis_dms * vis * dms_B_pos * rpe_pos * (1 - w_vis_dms_B)
+            dw_2 = beta_w_vis_dms * vis * dms_B_pos * rpe_neg * w_vis_dms_B
+            dw_3 = -gamma_w_vis_dms * vis * dms_B_neg * w_vis_dms_B
+            w_vis_dms_B = np.clip(w_vis_dms_B + dw_1 + dw_2 + dw_3, 0, 1)
 
             synapses = np.array([(2, 4), (2, 5), (3, 4), (3, 5)])
             pre_indices = synapses[:, 0]
@@ -344,29 +328,18 @@ def simulate(lesioned_trials,
             pm_A = g[2, :].sum()
             pm_B = g[3, :].sum()
 
-            for ii in range(vis_dim):
-                for jj in range(vis_dim):
-                    pre_activity = vis[ii, jj]
+            pm_A_pos = np.clip(pm_A - nmda_thresh, 0, None)
+            pm_A_neg = np.clip(nmda_thresh - pm_A, 0, None)
+            pm_B_pos = np.clip(pm_B - nmda_thresh, 0, None)
+            pm_B_neg = np.clip(nmda_thresh - pm_B, 0, None)
 
-                    post_activity = pm_A
-                    dw_1 = alpha_w_vis_premotor * pre_activity * np.clip(
-                        post_activity - nmda_thresh, 0,
-                        None) * (1 - w_vis_pm_A[ii, jj])
-                    dw_2 = -beta_w_vis_premotor * pre_activity * np.clip(
-                        nmda_thresh - post_activity, 0, None) * w_vis_pm_A[ii,
-                                                                           jj]
-                    w_vis_pm_A[ii, jj] += dw_1 + dw_2
-                    w_vis_pm_A[ii, jj] = np.clip(w_vis_pm_A[ii, jj], 0, 1)
+            dw_1 = alpha_w_vis_premotor * vis * pm_A_pos * (1 - w_vis_pm_A)
+            dw_2 = -beta_w_vis_premotor * vis * pm_A_neg * w_vis_pm_A
+            w_vis_pm_A = np.clip(w_vis_pm_A + dw_1 + dw_2, 0, 1)
 
-                    post_activity = pm_B
-                    dw_1 = alpha_w_vis_premotor * pre_activity * np.clip(
-                        post_activity - nmda_thresh, 0,
-                        None) * (1 - w_vis_pm_B[ii, jj])
-                    dw_2 = -beta_w_vis_premotor * pre_activity * np.clip(
-                        nmda_thresh - post_activity, 0, None) * w_vis_pm_B[ii,
-                                                                           jj]
-                    w_vis_pm_B[ii, jj] += dw_1 + dw_2
-                    w_vis_pm_B[ii, jj] = np.clip(w_vis_pm_B[ii, jj], 0, 1)
+            dw_1 = alpha_w_vis_premotor * vis * pm_B_pos * (1 - w_vis_pm_B)
+            dw_2 = -beta_w_vis_premotor * vis * pm_B_neg * w_vis_pm_B
+            w_vis_pm_B = np.clip(w_vis_pm_B + dw_1 + dw_2, 0, 1)
 
             synapses = np.array([(2, 6), (2, 7), (3, 6), (3, 7)])
             pre_indices = synapses[:, 0]
@@ -387,38 +360,32 @@ def simulate(lesioned_trials,
             w[pre_indices,
               post_indices] = np.clip(w[pre_indices, post_indices], 0, 1)
 
-            v_rec[:, sim, trl, :] = v
-            u_rec[:, sim, trl, :] = u
-            g_rec[:, sim, trl, :] = g
-            spike_rec[:, sim, trl, :] = spike
-            w_rec[:, :, sim, trl] = w
-            w_vis_dms_A_rec[:, :, sim, trl] = w_vis_dms_A
-            w_vis_dms_B_rec[:, :, sim, trl] = w_vis_dms_B
-            w_vis_pm_A_rec[:, :, sim, trl] = w_vis_pm_A
-            w_vis_pm_B_rec[:, :, sim, trl] = w_vis_pm_B
+        w_final[:, :, sim] = w
+        w_vis_dms_A_final[:, :, sim] = w_vis_dms_A
+        w_vis_dms_B_final[:, :, sim] = w_vis_dms_B
+        w_vis_pm_A_final[:, :, sim] = w_vis_pm_A
+        w_vis_pm_B_final[:, :, sim] = w_vis_pm_B
 
     prefix = build_prefix(fig_label, output_dir)
-    np.save(prefix.with_name(prefix.name + "_v.npy"), v_rec)
-    np.save(prefix.with_name(prefix.name + "_g.npy"), g_rec)
-    np.save(prefix.with_name(prefix.name + "_w.npy"), w_rec)
+    np.save(prefix.with_name(prefix.name + "_w_final.npy"), w_final)
     np.save(prefix.with_name(prefix.name + "_rpe.npy"), rpe)
     np.save(prefix.with_name(prefix.name + "_p.npy"), p)
     np.save(prefix.with_name(prefix.name + "_r.npy"), r)
     np.save(prefix.with_name(prefix.name + "_resp.npy"), resp)
     np.save(prefix.with_name(prefix.name + "_cat.npy"), cat)
     np.save(prefix.with_name(prefix.name + "_rt.npy"), rt)
-    np.save(prefix.with_name(prefix.name + "_w_vis_dms_A_rec.npy"),
-            w_vis_dms_A_rec)
-    np.save(prefix.with_name(prefix.name + "_w_vis_dms_B_rec.npy"),
-            w_vis_dms_B_rec)
-    np.save(prefix.with_name(prefix.name + "_w_vis_pm_A_rec.npy"),
-            w_vis_pm_A_rec)
-    np.save(prefix.with_name(prefix.name + "_w_vis_pm_B_rec.npy"),
-            w_vis_pm_B_rec)
+    np.save(prefix.with_name(prefix.name + "_w_vis_dms_A_final.npy"),
+            w_vis_dms_A_final)
+    np.save(prefix.with_name(prefix.name + "_w_vis_dms_B_final.npy"),
+            w_vis_dms_B_final)
+    np.save(prefix.with_name(prefix.name + "_w_vis_pm_A_final.npy"),
+            w_vis_pm_A_final)
+    np.save(prefix.with_name(prefix.name + "_w_vis_pm_B_final.npy"),
+            w_vis_pm_B_final)
 
     ds.to_csv(prefix.with_name(prefix.name + "_ds.csv"), index=False)
 
-    return v_rec, g_rec, w_rec, rpe, p, resp, cat, rt
+    return w_final, rpe, p, resp, cat, rt
 
 
 def make_stim_cats(n_stimuli_per_category=2000,
@@ -521,186 +488,9 @@ def make_stim_cats(n_stimuli_per_category=2000,
     return ds, ds_90, ds_180
 
 
-def load_simulation(fig_label, output_dir):
-    prefix = build_prefix(fig_label, output_dir)
-
-    v_rec = np.load(prefix.with_name(prefix.name + "_v.npy"))
-    g_rec = np.load(prefix.with_name(prefix.name + "_g.npy"))
-    w_rec = np.load(prefix.with_name(prefix.name + "_w.npy"))
-    rpe = np.load(prefix.with_name(prefix.name + "_rpe.npy"))
-    p = np.load(prefix.with_name(prefix.name + "_p.npy"))
-    r = np.load(prefix.with_name(prefix.name + "_r.npy"))
-    resp = np.load(prefix.with_name(prefix.name + "_resp.npy"))
-    cat = np.load(prefix.with_name(prefix.name + "_cat.npy"))
-    rt = np.load(prefix.with_name(prefix.name + "_rt.npy"))
-    w_vis_dms_A_rec = np.load(prefix.with_name(prefix.name + "_w_vis_dms_A_rec.npy"))
-    w_vis_dms_B_rec = np.load(prefix.with_name(prefix.name + "_w_vis_dms_B_rec.npy"))
-    w_vis_pm_A_rec = np.load(prefix.with_name(prefix.name + "_w_vis_pm_A_rec.npy"))
-    w_vis_pm_B_rec = np.load(prefix.with_name(prefix.name + "_w_vis_pm_B_rec.npy"))
-    ds = pd.read_csv(prefix.with_name(prefix.name + "_ds.csv"))
-
-    return (v_rec, g_rec, w_rec, rpe, p, r, resp, cat, rt, w_vis_dms_A_rec,
-            w_vis_dms_B_rec, w_vis_pm_A_rec, w_vis_pm_B_rec, ds)
-
-
-def plot_simulation(fig_label, output_dir, figures_dir):
-    res = load_simulation(fig_label, output_dir)
-
-    v_rec = res[0]
-    g_rec = res[1]
-    w_rec = res[2]
-    rpe = res[3]
-    p = res[4]
-    resp = res[6]
-    cat = res[7]
-    rt = res[8]
-    w_vis_dms_A_rec = res[9]
-    w_vis_dms_B_rec = res[10]
-    w_vis_pm_A_rec = res[11]
-    w_vis_pm_B_rec = res[12]
-
-    n_trials = v_rec.shape[2]
-
-    mean_g = g_rec.mean(axis=1)
-    mean_rpe = rpe.mean(axis=0)
-    mean_p = p.mean(axis=0)
-    mean_accuracy = (resp == cat).mean(axis=0)
-
-    pathway_A = [0, 2, 4, 6]
-    pathway_B = [1, 3, 5, 7]
-
-    pathway_A_names = ["DMS A", "Premotor A", "DLS A", "Motor A"]
-    pathway_B_names = ["DMS B", "Premotor B", "DLS B", "Motor B"]
-
-    fig, axes = plt.subplots(5, 4, figsize=(20, 15))
-    trials = np.arange(n_trials)
-
-    for idx, cell in enumerate(pathway_A):
-        ax = axes[idx, 0]
-        sns.heatmap(mean_g[cell], ax=ax, cbar=True, cmap="viridis")
-        ax.set_title(f"A Pathway: {pathway_A_names[idx]}")
-        ax.set_ylabel("Trial")
-        ax.set_xlabel("Time (ms)")
-
-    for idx, cell in enumerate(pathway_B):
-        ax = axes[idx, 1]
-        sns.heatmap(mean_g[cell], ax=ax, cbar=True, cmap="viridis")
-        ax.set_title(f"B Pathway: {pathway_B_names[idx]}")
-        ax.set_ylabel("Trial")
-        ax.set_xlabel("Time (ms)")
-
-    tt = np.arange(0, n_trials)
-
-    axx = axes[0, 2]
-    w_vis_dms_A_avg = np.mean(w_vis_dms_A_rec[:, :, -1, :], axis=(0, 1))
-    w_vis_dms_B_avg = np.mean(w_vis_dms_B_rec[:, :, -1, :], axis=(0, 1))
-    axx.plot(tt, w_vis_dms_A_avg, marker="o", label="w_vis_dms_A_avg")
-    axx.plot(tt, w_vis_dms_B_avg, marker="o", label="w_vis_dms_B_avg")
-    axx.set_ylim(-0.1, 1.5)
-    axx.legend(loc="upper center", ncol=2)
-    axx.set_xticks([])
-    axx.set_title("Stage 1 subcortical")
-
-    axx = axes[1, 2]
-    axx.plot(tt, w_rec[2, 4, -1, :], marker="o", label="(PM A to DLS A)")
-    axx.plot(tt, w_rec[2, 5, -1, :], marker="o", label="(PM A to DLS B)")
-    axx.plot(tt, w_rec[3, 4, -1, :], marker="o", label="(PM B to DLS A)")
-    axx.plot(tt, w_rec[3, 5, -1, :], marker="o", label="(PM B to DLS B)")
-    axx.set_xticks([])
-    axx.set_ylim(-0.1, 1.5)
-    axx.legend(loc="upper center", ncol=2)
-    axx.set_title("Stage 2 subcortical")
-
-    axx = axes[2, 2]
-    w_vis_pm_A_avg = np.mean(w_vis_pm_A_rec[:, :, -1, :], axis=(0, 1))
-    w_vis_pm_B_avg = np.mean(w_vis_pm_B_rec[:, :, -1, :], axis=(0, 1))
-    axx.plot(tt, w_vis_pm_A_avg, marker="o", label="w_vis_pm_A_avg")
-    axx.plot(tt, w_vis_pm_B_avg, marker="o", label="w_vis_pm_B_avg")
-    axx.set_ylim(-0.1, 1.5)
-    axx.legend(loc="upper center", ncol=2)
-    axx.set_xticks([])
-    axx.set_title("Stage 1 cortical")
-
-    axx = axes[3, 2]
-    axx.plot(tt, w_rec[2, 6, -1, :], marker="o", label="(PM A to M1 A)")
-    axx.plot(tt, w_rec[2, 7, -1, :], marker="o", label="(PM A to M1 B)")
-    axx.plot(tt, w_rec[3, 6, -1, :], marker="o", label="(PM B to M1 A)")
-    axx.plot(tt, w_rec[3, 7, -1, :], marker="o", label="(PM B to M1 B)")
-    axx.set_xticks([])
-    axx.set_ylim(-0.1, 1.5)
-    axx.legend(loc="upper center", ncol=2)
-    axx.set_title("Stage 2 cortical")
-
-    ax = axes[0, 3]
-    ax.plot(trials, mean_rpe, color="C0", marker="o", label="RPE")
-    ax.plot(trials,
-            mean_p,
-            color="C1",
-            linestyle="--",
-            marker="o",
-            label="Prediction (p)")
-    ax.set_title("RPE and Prediction")
-    ax.set_ylabel("RPE")
-    ax.grid()
-
-    ax_acc = axes[1, 3]
-    ax_acc.plot(trials, mean_accuracy, color="C3", marker="o", label="Accuracy")
-    ax_acc.set_title("Response Accuracy")
-    ax_acc.set_ylabel("Accuracy (1 = Correct)")
-    ax_acc.set_xlabel("Trial")
-    ax_acc.grid()
-
-    ax_rt = axes[2, 3]
-    ax_rt.plot(trials,
-               rt.mean(axis=0),
-               color="C4",
-               marker="o",
-               label="Response Time")
-    ax_rt.set_title("Response Time")
-    ax_rt.set_ylabel("Time (ms)")
-    ax_rt.set_xlabel("Trial")
-    ax_rt.grid()
-
-    axx = axes[-1][0]
-    im0 = axx.imshow(w_vis_dms_A_rec[:, :, -1, -2], cmap="viridis")
-    axx.invert_yaxis()
-    plt.colorbar(im0, ax=axx, fraction=0.046, pad=0.04)
-    axx.set_xticks([])
-    axx.set_yticks([])
-    axx.set_title("w_vis_dms_A (current)")
-
-    axx = axes[-1][1]
-    im1 = axx.imshow(w_vis_dms_B_rec[:, :, -1, -2], cmap="viridis")
-    axx.invert_yaxis()
-    plt.colorbar(im1, ax=axx, fraction=0.046, pad=0.04)
-    axx.set_xticks([])
-    axx.set_yticks([])
-    axx.set_title("w_vis_dms_B (current)")
-
-    axx = axes[-1][2]
-    im2 = axx.imshow(w_vis_pm_A_rec[:, :, -1, -2], cmap="viridis")
-    axx.invert_yaxis()
-    plt.colorbar(im2, ax=axx, fraction=0.046, pad=0.04)
-    axx.set_xticks([])
-    axx.set_yticks([])
-    axx.set_title("w_vis_pm_A (current)")
-
-    axx = axes[-1][3]
-    im3 = axx.imshow(w_vis_pm_B_rec[:, :, -1, -2], cmap="viridis")
-    axx.invert_yaxis()
-    plt.colorbar(im3, ax=axx, fraction=0.046, pad=0.04)
-    axx.set_xticks([])
-    axx.set_yticks([])
-    axx.set_title("w_vis_pm_B (current)")
-
-    plt.tight_layout()
-    plt.savefig(figures_dir / f"{OUTPUT_PREFIX}_{fig_label}.png", dpi=150)
-    plt.close(fig)
-
-
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Gadi-safe single-process runner for model_spiking_cat_90vs180.py"
+        description="Local vectorized light-output runner for model_spiking_cat_90vs180.py"
     )
     parser.add_argument("--rotations",
                         nargs="+",
@@ -712,7 +502,6 @@ def parse_args():
     parser.add_argument("--probe-trial-onsets", nargs="+", type=int, default=[600])
     parser.add_argument("--n-probe-trials", type=int, default=200)
     parser.add_argument("--seed", type=int, default=1)
-    parser.add_argument("--plot", action="store_true")
     parser.add_argument("--plot-stimuli", action="store_true")
     return parser.parse_args()
 
@@ -746,8 +535,6 @@ def main():
             figures_dir=FIGURES_DIR,
             seed=args.seed,
         )
-        if args.plot:
-            plot_simulation(fig_label, OUTPUT_DIR, FIGURES_DIR)
 
 
 if __name__ == "__main__":

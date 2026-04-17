@@ -543,12 +543,12 @@ def make_stim_cats(n_stimuli_per_category=2000):
     ds_180["x"] = ds_180["x"] + 50
     ds_180["y"] = ds_180["y"] + 50
 
-    fig, ax = plt.subplots(1, 3, squeeze=False,  figsize=(12, 6))
-    sns.scatterplot(data=ds, x="x", y="y", hue="cat", alpha=0.5, ax=ax[0, 0])
-    sns.scatterplot(data=ds_90, x="x", y="y", hue="cat", alpha=0.5, ax=ax[0, 1])
-    sns.scatterplot(data=ds_180, x="x", y="y", hue="cat", alpha=0.5, ax=ax[0, 2])
-    plt.tight_layout()
-    plt.show()
+    # fig, ax = plt.subplots(1, 3, squeeze=False,  figsize=(12, 6))
+    # sns.scatterplot(data=ds, x="x", y="y", hue="cat", alpha=0.5, ax=ax[0, 0])
+    # sns.scatterplot(data=ds_90, x="x", y="y", hue="cat", alpha=0.5, ax=ax[0, 1])
+    # sns.scatterplot(data=ds_180, x="x", y="y", hue="cat", alpha=0.5, ax=ax[0, 2])
+    # plt.tight_layout()
+    # plt.show()
 
     return ds, ds_90, ds_180
 

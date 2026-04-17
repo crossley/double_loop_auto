@@ -22,7 +22,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 OUTPUT_DIR = REPO_ROOT / "output"
 FIGURES_DIR = REPO_ROOT / "figures"
-OUTPUT_PREFIX = "model_spiking_cat_90vs180_gadi"
+OUTPUT_PREFIX = "model_spiking_cat_90vs180_vectorized"
 
 
 def build_prefix(fig_label: str, output_dir: Path) -> Path:
@@ -288,36 +288,24 @@ def simulate(lesioned_trials,
 
             dms_A = g[0, :].sum()
             dms_B = g[1, :].sum()
+            rpe_val = rpe[sim, trl]
 
-            for ii in range(vis_dim):
-                for jj in range(vis_dim):
-                    pre_activity = vis[ii, jj]
+            dms_A_pos = np.clip(dms_A - nmda_thresh, 0, None)
+            dms_A_neg = np.clip(nmda_thresh - dms_A, 0, None)
+            dms_B_pos = np.clip(dms_B - nmda_thresh, 0, None)
+            dms_B_neg = np.clip(nmda_thresh - dms_B, 0, None)
+            rpe_pos = np.clip(rpe_val, 0, None)
+            rpe_neg = np.clip(rpe_val, None, 0)
 
-                    post_activity = dms_A
-                    dw_1 = alpha_w_vis_dms * pre_activity * np.clip(
-                        post_activity - nmda_thresh, 0, None) * np.clip(
-                            rpe[sim, trl], 0, None) * (1 - w_vis_dms_A[ii, jj])
-                    dw_2 = beta_w_vis_dms * pre_activity * np.clip(
-                        post_activity - nmda_thresh, 0, None) * np.clip(
-                            rpe[sim, trl], None, 0) * w_vis_dms_A[ii, jj]
-                    dw_3 = -gamma_w_vis_dms * pre_activity * np.clip(
-                        nmda_thresh - post_activity, 0, None) * w_vis_dms_A[ii,
-                                                                            jj]
-                    w_vis_dms_A[ii, jj] += dw_1 + dw_2 + dw_3
-                    w_vis_dms_A[ii, jj] = np.clip(w_vis_dms_A[ii, jj], 0, 1)
+            dw_1 = alpha_w_vis_dms * vis * dms_A_pos * rpe_pos * (1 - w_vis_dms_A)
+            dw_2 = beta_w_vis_dms * vis * dms_A_pos * rpe_neg * w_vis_dms_A
+            dw_3 = -gamma_w_vis_dms * vis * dms_A_neg * w_vis_dms_A
+            w_vis_dms_A = np.clip(w_vis_dms_A + dw_1 + dw_2 + dw_3, 0, 1)
 
-                    post_activity = dms_B
-                    dw_1 = alpha_w_vis_dms * pre_activity * np.clip(
-                        post_activity - nmda_thresh, 0, None) * np.clip(
-                            rpe[sim, trl], 0, None) * (1 - w_vis_dms_B[ii, jj])
-                    dw_2 = beta_w_vis_dms * pre_activity * np.clip(
-                        post_activity - nmda_thresh, 0, None) * np.clip(
-                            rpe[sim, trl], None, 0) * w_vis_dms_B[ii, jj]
-                    dw_3 = -gamma_w_vis_dms * pre_activity * np.clip(
-                        nmda_thresh - post_activity, 0, None) * w_vis_dms_B[ii,
-                                                                            jj]
-                    w_vis_dms_B[ii, jj] += dw_1 + dw_2 + dw_3
-                    w_vis_dms_B[ii, jj] = np.clip(w_vis_dms_B[ii, jj], 0, 1)
+            dw_1 = alpha_w_vis_dms * vis * dms_B_pos * rpe_pos * (1 - w_vis_dms_B)
+            dw_2 = beta_w_vis_dms * vis * dms_B_pos * rpe_neg * w_vis_dms_B
+            dw_3 = -gamma_w_vis_dms * vis * dms_B_neg * w_vis_dms_B
+            w_vis_dms_B = np.clip(w_vis_dms_B + dw_1 + dw_2 + dw_3, 0, 1)
 
             synapses = np.array([(2, 4), (2, 5), (3, 4), (3, 5)])
             pre_indices = synapses[:, 0]
@@ -344,29 +332,18 @@ def simulate(lesioned_trials,
             pm_A = g[2, :].sum()
             pm_B = g[3, :].sum()
 
-            for ii in range(vis_dim):
-                for jj in range(vis_dim):
-                    pre_activity = vis[ii, jj]
+            pm_A_pos = np.clip(pm_A - nmda_thresh, 0, None)
+            pm_A_neg = np.clip(nmda_thresh - pm_A, 0, None)
+            pm_B_pos = np.clip(pm_B - nmda_thresh, 0, None)
+            pm_B_neg = np.clip(nmda_thresh - pm_B, 0, None)
 
-                    post_activity = pm_A
-                    dw_1 = alpha_w_vis_premotor * pre_activity * np.clip(
-                        post_activity - nmda_thresh, 0,
-                        None) * (1 - w_vis_pm_A[ii, jj])
-                    dw_2 = -beta_w_vis_premotor * pre_activity * np.clip(
-                        nmda_thresh - post_activity, 0, None) * w_vis_pm_A[ii,
-                                                                           jj]
-                    w_vis_pm_A[ii, jj] += dw_1 + dw_2
-                    w_vis_pm_A[ii, jj] = np.clip(w_vis_pm_A[ii, jj], 0, 1)
+            dw_1 = alpha_w_vis_premotor * vis * pm_A_pos * (1 - w_vis_pm_A)
+            dw_2 = -beta_w_vis_premotor * vis * pm_A_neg * w_vis_pm_A
+            w_vis_pm_A = np.clip(w_vis_pm_A + dw_1 + dw_2, 0, 1)
 
-                    post_activity = pm_B
-                    dw_1 = alpha_w_vis_premotor * pre_activity * np.clip(
-                        post_activity - nmda_thresh, 0,
-                        None) * (1 - w_vis_pm_B[ii, jj])
-                    dw_2 = -beta_w_vis_premotor * pre_activity * np.clip(
-                        nmda_thresh - post_activity, 0, None) * w_vis_pm_B[ii,
-                                                                           jj]
-                    w_vis_pm_B[ii, jj] += dw_1 + dw_2
-                    w_vis_pm_B[ii, jj] = np.clip(w_vis_pm_B[ii, jj], 0, 1)
+            dw_1 = alpha_w_vis_premotor * vis * pm_B_pos * (1 - w_vis_pm_B)
+            dw_2 = -beta_w_vis_premotor * vis * pm_B_neg * w_vis_pm_B
+            w_vis_pm_B = np.clip(w_vis_pm_B + dw_1 + dw_2, 0, 1)
 
             synapses = np.array([(2, 6), (2, 7), (3, 6), (3, 7)])
             pre_indices = synapses[:, 0]
